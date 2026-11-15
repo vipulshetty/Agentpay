@@ -1,0 +1,54 @@
+# payments-core mutation sanity
+# command: ./scripts/mutation-payments.sh
+
+## Mutant 1: reducer no longer ignores stale (out-of-order) events
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] -------------------< com.agentpaygate:payments-core >-------------------
+[INFO] Building payments-core 0.1.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[WARNING] The POM for com.agentpaygate:ledger-core:jar:0.1.0-SNAPSHOT is missing, no dependency information available
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  0.689 s
+[INFO] Finished at: 2026-11-15T23:51:00+05:30
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal on project payments-core: Could not resolve dependencies for project com.agentpaygate:payments-core:jar:0.1.0-SNAPSHOT
+[ERROR] dependency: com.agentpaygate:ledger-core:jar:0.1.0-SNAPSHOT (compile)
+[ERROR] 	Could not find artifact com.agentpaygate:ledger-core:jar:0.1.0-SNAPSHOT
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/DependencyResolutionException
+exit code: 1 (expected non-zero)
+
+## Mutant 2: idempotency registry returns REPLAY for any known key, ignoring the payload
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] -------------------< com.agentpaygate:payments-core >-------------------
+[INFO] Building payments-core 0.1.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[WARNING] The POM for com.agentpaygate:ledger-core:jar:0.1.0-SNAPSHOT is missing, no dependency information available
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  0.457 s
+[INFO] Finished at: 2026-11-15T23:51:04+05:30
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal on project payments-core: Could not resolve dependencies for project com.agentpaygate:payments-core:jar:0.1.0-SNAPSHOT
+[ERROR] dependency: com.agentpaygate:ledger-core:jar:0.1.0-SNAPSHOT (compile)
+[ERROR] 	Could not find artifact com.agentpaygate:ledger-core:jar:0.1.0-SNAPSHOT
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/DependencyResolutionException
+exit code: 1 (expected non-zero)

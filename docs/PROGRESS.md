@@ -46,3 +46,22 @@ Known gaps / risks:
   - Every deny reason has a unit test (21 PolicyEngineTest cases plus 5 jqwik properties).
 Decisions made (ADRs): ADR-002
 ```
+
+---
+
+```
+PHASE 2: Payment state machine, idempotency, provider events and reconciliation  -  GATE: PASS
+Commands run:
+  ./mvnw -B verify                                       -> exit 0, tests: 79/0/0
+  ./scripts/mutation-payments.sh                         -> exit 0, both mutants killed
+Files added/changed: payments-core (Payment, PaymentState, PaymentTransitions, IdempotencyRegistry,
+  ProviderEventReducer, Reconciler and their tests), docs/walkthrough/phase-2.md
+Docs written: docs/walkthrough/phase-2.md, docs/evidence/mutation-payments.txt
+Known gaps / risks:
+  - PaymentTransitions uses Map.ofEntries: 12 states exceed Map.of's arity, and an immutable
+    complete table is what the invariants rely on.
+  - A retry with a fresh provider idempotency key is the classic double-charge bug. The key is
+    stored with the payment and never regenerated; the mutation script kills a mutant that
+    regenerates it.
+Decisions made (ADRs): none new; ADR-002 still governs mandate signing.
+```
