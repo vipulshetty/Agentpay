@@ -29,3 +29,6 @@ playwright-report/
 test-results/
 *.log
 .docker/
+
+# Go build output
+edge-proxy/bin/

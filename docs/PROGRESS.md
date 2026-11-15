@@ -121,3 +121,26 @@ Known gaps / risks:
     fixed in the lab's code and are described in docs/walkthrough/phase-4.md.
 Decisions made (ADRs): none new.
 ```
+
+---
+
+```
+PHASE 5: Go edge proxy  -  GATE: PASS
+Commands run:
+  (cd edge-proxy && go vet ./... && go test -race ./...)  -> exit 0, 11 tests
+  ./scripts/verify-all.sh                                -> exit 0 (Java 98/0/0, Go PASS)
+  GATEWAY_BASE_URL=http://localhost:8088 node scripts/mcp-smoke.mjs
+                                                         -> exit 0, MCP end-to-end through the edge
+  edge with EDGE_RATE_PER_SECOND=1 EDGE_RATE_BURST=5, 10 requests one credential
+                                                         -> 5 x 200, 5 x 429 with Retry-After
+Files added/changed: edge-proxy (go.mod, config.go, proxy.go, ratelimit.go, main.go, proxy_test.go),
+  scripts/verify-all.sh already ran the Go gates, .gitignore (edge-proxy/bin/)
+Docs written: docs/walkthrough/phase-5.md, docs/evidence/phase-5-edge.txt,
+  docs/evidence/phase-5-verify-all.txt
+Known gaps / risks:
+  - No TLS at the edge: it expects a TLS terminator in front, which the deployment phase provides.
+  - The rate limiter is per process, so N edge instances allow N times the intended rate.
+  - No metrics endpoint on the edge; it logs, the gateway measures.
+  - The edge authenticates nothing by design; the gateway remains the only authority.
+Decisions made (ADRs): none new.
+```
