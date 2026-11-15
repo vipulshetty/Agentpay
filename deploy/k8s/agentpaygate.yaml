@@ -1,0 +1,274 @@
+# Kubernetes manifests for the demo stack.
+#
+# These are NOT verified: kubectl and a cluster are not installed on the machine this was built on,
+# so nothing here has been applied. They are included as the deployment shape the compose stack
+# demonstrates, and are marked UNVERIFIED in docs/PROGRESS.md.
+#
+# Build and load the images first, for example:
+#   docker build -f deploy/Dockerfile.gateway -t agentpaygate-gateway:0.1.0 .
+#   docker build -f deploy/Dockerfile.psp     -t agentpaygate-psp:0.1.0 .
+#   docker build -f deploy/Dockerfile.edge    -t agentpaygate-edge:0.1.0 .
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: agentpaygate
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: agentpaygate-secrets
+  namespace: agentpaygate
+type: Opaque
+stringData:
+  # Demo values. Replace with a real secret store; these are not secrets.
+  POSTGRES_PASSWORD: agentpaygate
+  GATEWAY_ADMIN_TOKEN: demo-admin-token
+  WEBHOOK_SECRET: demo-webhook-secret
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agentpaygate-config
+  namespace: agentpaygate
+data:
+  PSP_BASE_URL: "http://psp-sim:8081"
+  GATEWAY_DB_URL: "jdbc:postgresql://postgres:5432/agentpaygate"
+  GATEWAY_DB_USER: "agentpaygate"
+  EDGE_UPSTREAM: "http://gateway:8080"
+  EDGE_ADDR: ":8088"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: agentpaygate
+spec:
+  clusterIP: None
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: agentpaygate
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - name: POSTGRES_USER
+              value: agentpaygate
+            - name: POSTGRES_DB
+              value: agentpaygate
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: agentpaygate-secrets
+                  key: POSTGRES_PASSWORD
+          ports:
+            - containerPort: 5432
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "agentpaygate", "-d", "agentpaygate"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { memory: 512Mi }
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: psp-sim
+  namespace: agentpaygate
+spec:
+  selector:
+    app: psp-sim
+  ports:
+    - port: 8081
+      targetPort: 8081
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: psp-sim
+  namespace: agentpaygate
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: psp-sim
+  template:
+    metadata:
+      labels:
+        app: psp-sim
+    spec:
+      containers:
+        - name: psp-sim
+          image: agentpaygate-psp:0.1.0
+          env:
+            - name: PSP_PORT
+              value: "8081"
+            - name: GATEWAY_WEBHOOK_URL
+              value: "http://gateway:8080/webhooks/psp"
+            - name: WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: agentpaygate-secrets
+                  key: WEBHOOK_SECRET
+          ports:
+            - containerPort: 8081
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8081
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { memory: 768Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  namespace: agentpaygate
+spec:
+  selector:
+    app: gateway
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: agentpaygate
+spec:
+  replicas: 1
+  strategy:
+    # One gateway at a time by default: the outbox worker is safe with more replicas, but the
+    # database-level guarantees deserve a deliberate decision before scaling out.
+    type: Recreate
+  selector:
+    matchLabels:
+      app: gateway
+  template:
+    metadata:
+      labels:
+        app: gateway
+    spec:
+      containers:
+        - name: gateway
+          image: agentpaygate-gateway:0.1.0
+          envFrom:
+            - configMapRef:
+                name: agentpaygate-config
+          env:
+            - name: GATEWAY_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: agentpaygate-secrets
+                  key: GATEWAY_ADMIN_TOKEN
+            - name: GATEWAY_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: agentpaygate-secrets
+                  key: POSTGRES_PASSWORD
+            - name: WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: agentpaygate-secrets
+                  key: WEBHOOK_SECRET
+            - name: GATEWAY_PORT
+              value: "8080"
+          ports:
+            - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { memory: 1Gi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: edge
+  namespace: agentpaygate
+spec:
+  type: NodePort
+  selector:
+    app: edge
+  ports:
+    - port: 8088
+      targetPort: 8088
+      nodePort: 30088
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edge
+  namespace: agentpaygate
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: edge
+  template:
+    metadata:
+      labels:
+        app: edge
+    spec:
+      containers:
+        - name: edge
+          image: agentpaygate-edge:0.1.0
+          envFrom:
+            - configMapRef:
+                name: agentpaygate-config
+          ports:
+            - containerPort: 8088
+          readinessProbe:
+            httpGet:
+              path: /-/health
+              port: 8088
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { memory: 128Mi }

@@ -1,0 +1,16 @@
+FROM golang:1.26-alpine AS build
+
+WORKDIR /src
+COPY edge-proxy/go.mod ./
+RUN go mod download
+COPY edge-proxy/ ./
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/edge-proxy .
+
+FROM alpine:3.20
+
+RUN adduser -D -u 10001 app
+COPY --from=build /out/edge-proxy /usr/local/bin/edge-proxy
+USER app
+
+EXPOSE 8088
+ENTRYPOINT ["edge-proxy"]

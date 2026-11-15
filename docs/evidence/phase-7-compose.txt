@@ -1,0 +1,64 @@
+== docker compose stack ==
+2026-11-15T20:09:26Z
+$ docker compose -f deploy/docker-compose.yml up -d --build postgres psp-sim gateway edge
+ psp-sim  Built
+ Container agentpaygate-postgres-1  Started
+ Container agentpaygate-psp-sim-1  Started
+ Container agentpaygate-postgres-1  Healthy
+ Container agentpaygate-psp-sim-1  Healthy
+ Container agentpaygate-gateway-1  Started
+ Container agentpaygate-gateway-1  Healthy
+ Container agentpaygate-edge-1  Started
+
+$ docker compose ps
+SERVICE    STATUS                    PORTS
+edge       Up 19 seconds (healthy)   0.0.0.0:18088->8088/tcp, [::]:18088->8088/tcp
+gateway    Up 30 seconds (healthy)   0.0.0.0:18080->8080/tcp, [::]:18080->8080/tcp
+postgres   Up 40 seconds (healthy)   0.0.0.0:15432->5432/tcp, [::]:15432->5432/tcp
+psp-sim    Up 40 seconds (healthy)   0.0.0.0:18081->8081/tcp, [::]:18081->8081/tcp
+
+$ curl -s localhost:18088/-/health
+{"status":"UP"}
+$ ./scripts/demo-setup.sh (against compose gateway :18080)
+wallet funding: {"agentId":"agent-demo","walletBalance":5000000,"businessEventId":"funding:agent-demo:123c52f9-4aaa-4146-9d69-d1e789c86738"}
+
+agent API key: apg_d312c8c04cb245e5bd0597509322d193
+mandate id:    mandate-demo
+exit 0
+
+$ GATEWAY_BASE_URL=http://localhost:18088 node scripts/mcp-smoke.mjs (MCP through the compose edge)
+get_payment_status: {"amountMinor":12345,"capturedMinor":0,"currency":"INR","paymentId":"pay_4c4d2bf2-4728-433c-8b96-347e9f0c4701","providerRef":"","reasonCode":"","refundedMinor":0,"state":"AUTHORIZING"}
+
+MCP smoke test passed.
+exit 0
+
+$ ./scripts/demo-setup.sh (re-run, status captured properly; mandate already exists so the upload reports MANDATE_EXISTS)
+exit 0
+registered demo merchants
+mandate upload: {"code":"MANDATE_EXISTS","message":"mandate already uploaded","status":400}
+wallet funding: {"agentId":"agent-demo","walletBalance":9987655,"businessEventId":"funding:agent-demo:90bf63ec-239d-436a-b7bd-8f10493686fc"}
+
+$ docker compose --profile monitoring up -d prometheus grafana
+ Container agentpaygate-prometheus-1  Starting
+ Container agentpaygate-prometheus-1  Started
+ Container agentpaygate-grafana-1  Starting
+ Container agentpaygate-grafana-1  Started
+$ curl -s 'localhost:19090/api/v1/targets?state=active'
+[('agentpaygate-gateway', 'up', '')]
+$ curl -s -o /dev/null -w 'grafana %{http_code}\n' localhost:13000/login
+$ curl -s -o /dev/null -w 'grafana login' localhost:13000/login
+200
+$ prometheus query agentpaygate_payments_requested_total
+[{'metric': {'__name__': 'agentpaygate_payments_requested_total', 'application': 'agentpaygate-gateway', 'instance': 'gateway:8080', 'job': 'agentpaygate-gateway'}, 'value': [1794773434.567, '1']}]
+
+$ ./scripts/compose-smoke.sh
+waiting for http://localhost:18080 ...
+gateway and edge are healthy
+
+agent API key: apg_d312c8c04cb245e5bd0597509322d193
+mandate id:    mandate-demo
+get_payment_status: {"amountMinor":12345,"capturedMinor":0,"currency":"INR","paymentId":"pay_7f55b779-03a1-4e54-8800-df94c21acffb","providerRef":"","reasonCode":"","refundedMinor":0,"state":"AUTHORIZING"}
+
+MCP smoke test passed.
+compose smoke: PASS
+exit 0

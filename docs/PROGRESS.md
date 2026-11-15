@@ -173,3 +173,73 @@ Known gaps / risks:
 Decisions made (ADRs): none new; the merchant-directory requirement is recorded here and in
   docs/walkthrough/phase-6.md.
 ```
+
+---
+
+```
+PHASE 7: Deployment  -  GATE: PASS for compose, UNVERIFIED for Kubernetes
+Commands run:
+  docker compose -f deploy/docker-compose.yml config -q                       -> exit 0
+  docker compose -f deploy/docker-compose.yml --profile ui --profile monitoring config -q
+                                                                              -> exit 0
+  docker compose -f deploy/docker-compose.yml up -d --build postgres psp-sim gateway edge
+                                                                              -> exit 0, 4 containers healthy
+  ./scripts/compose-smoke.sh                                                  -> exit 0
+  GATEWAY_BASE_URL=http://localhost:18088 node scripts/mcp-smoke.mjs          -> exit 0
+  prometheus target agentpaygate-gateway: up; metric scraped; grafana /login 200
+  (kubectl / kind not installed: deploy/k8s/*.yaml is UNVERIFIED, never applied)
+Files added/changed: deploy/Dockerfile.{gateway,psp,edge,console}, deploy/nginx.conf,
+  deploy/docker-compose.yml, deploy/prometheus/prometheus.yml, grafana datasource provisioning,
+  deploy/k8s/agentpaygate.yaml, deploy/k8s/kustomization.yaml, scripts/compose-smoke.sh,
+  .dockerignore
+Docs written: docs/walkthrough/phase-7.md, docs/evidence/phase-7-compose.txt
+Known gaps / risks:
+  - Kubernetes manifests are written but never applied; no cluster exists on this machine.
+  - The console image was validated by `config`, not started.
+  - No TLS in the stack; the edge expects a terminator in front.
+  - Resource limits are laptop-sized guesses, not measured.
+Decisions made (ADRs): none new.
+```
+
+---
+
+```
+PHASE 8: Load test and documentation set  -  GATE: PASS
+Commands run:
+  GATEWAY_BASE_URL=http://localhost:18088 REQUESTS=200 CONCURRENCY=8 node load/load.mjs
+                                                         -> exit 1 (edge rate limit: 75 x 200, 125 x 429)
+  GATEWAY_BASE_URL=http://localhost:18080 REQUESTS=200 CONCURRENCY=8 node load/load.mjs
+                                                         -> exit 0 (200/200 approved, p50 96 ms, p95 158 ms)
+Files added/changed: load/load.mjs, load/README.md, README.md, docs/architecture.md,
+  docs/threat-model.md, docs/invariants.md, docs/fault-model.md, docs/determinism.md,
+  docs/walkthrough/phase-8.md, .github/workflows/ci.yml (failsafe reports counted, compose smoke)
+Docs written: README.md and the five design documents above, docs/evidence/phase-8-load.txt
+Known gaps / risks:
+  - k6 is not installed; the load generator is a Node script. It measures the MCP request path,
+    not the asynchronous provider/webhook path.
+  - All numbers come from one laptop with a shared Postgres container.
+  - The CI workflow is still UNVERIFIED: the repository has no remote, so no runner has executed it.
+Decisions made (ADRs): none new.
+```
+
+---
+
+```
+PROJECT STATUS (as of this log)
+
+Verified by a command in this repository:
+  - 98 Java tests, 0 skipped, including 12 integration tests against real Postgres and a real
+    psp-sim container.
+  - Go edge: go vet + go test -race.
+  - TypeScript console and demo-agent: tsc --noEmit, console vite build.
+  - Simulation gauntlet: 6/6 planted bugs caught, 40/40 clean runs.
+  - MCP end to end: locally, through the edge, and on the compose stack.
+  - Compose stack: 4 services built and healthy; Prometheus scrapes the gateway; Grafana serves.
+  - Seven abuse cases refused with the expected reason codes.
+  - Load: 200/200 approved at concurrency 8 on the gateway path.
+
+Not verified, and not claimed:
+  - Kubernetes manifests (no cluster).
+  - CI workflow (no remote, never executed).
+  - TLS, multi-instance gateways, Postgres fault injection, console UI tests, accessibility.
+```

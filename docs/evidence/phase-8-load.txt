@@ -1,0 +1,55 @@
+== load: MCP payment path through the edge ==
+2026-11-15T20:13:03Z
+$ GATEWAY_BASE_URL=http://localhost:18088 REQUESTS=200 CONCURRENCY=8 node load/load.mjs
+{
+  "server": "agentpaygate",
+  "endpoint": "http://localhost:18088/mcp",
+  "requests": 200,
+  "concurrency": 8,
+  "approved": 75,
+  "throughputPerSecond": 108.58,
+  "latencyMs": {
+    "min": 5.9,
+    "p50": 33.1,
+    "p95": 225.7,
+    "p99": 335.6,
+    "max": 357.3
+  },
+  "statuses": {
+    "200": 75,
+    "429": 125
+  },
+  "errors": [
+    "HTTP 429",
+    "HTTP 429",
+    "HTTP 429",
+    "HTTP 429",
+    "HTTP 429"
+  ]
+}
+exit 1
+
+The run above is a measurement of the edge's rate limit, not of the gateway: EDGE_RATE_BURST=40
+with 8 concurrent clients means most attempts are rejected by design (125 x 429).
+
+$ GATEWAY_BASE_URL=http://localhost:18080 REQUESTS=200 CONCURRENCY=8 node load/load.mjs  (gateway direct)
+{
+  "server": "agentpaygate",
+  "endpoint": "http://localhost:18080/mcp",
+  "requests": 200,
+  "concurrency": 8,
+  "approved": 200,
+  "throughputPerSecond": 81.25,
+  "latencyMs": {
+    "min": 27.6,
+    "p50": 96.4,
+    "p95": 158,
+    "p99": 185.8,
+    "max": 198.4
+  },
+  "statuses": {
+    "200": 200
+  },
+  "errors": []
+}
+exit 0

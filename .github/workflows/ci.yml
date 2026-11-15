@@ -23,7 +23,7 @@ jobs:
           python3 - <<'PY'
           import glob, sys, xml.etree.ElementTree as ET
           skipped = 0
-          for path in glob.glob("*/target/surefire-reports/*.xml"):
+          for path in glob.glob("*/target/surefire-reports/*.xml") + glob.glob("*/target/failsafe-reports/*.xml"):
               suite = ET.parse(path).getroot()
               skipped += int(suite.get("skipped", 0))
           print("skipped tests:", skipped)

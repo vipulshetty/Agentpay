@@ -1,0 +1,12 @@
+# Keep the build context to what the images copy: jars for the Java services, sources for the edge
+# and the console. Everything else would just be uploaded to the daemon.
+.git
+.run
+secrets
+demo/mandates
+**/node_modules
+**/dist
+edge-proxy/bin
+docs
+load
+*.log

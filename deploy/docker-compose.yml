@@ -1,0 +1,129 @@
+# AgentPayGate demo stack. Everything is simulated; the admin token and webhook secret here are
+# demo values, not secrets.
+#
+#   docker compose -f deploy/docker-compose.yml up -d --build postgres psp-sim gateway edge
+#   docker compose -f deploy/docker-compose.yml --profile ui --profile monitoring up -d
+#
+# Host ports are offset from the defaults so this stack can run next to a local `mvn spring-boot:run`
+# without a port clash: 18080 gateway, 18081 provider, 18088 edge, 15432 postgres, 18090 console.
+name: agentpaygate
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: agentpaygate
+      POSTGRES_PASSWORD: agentpaygate
+      POSTGRES_DB: agentpaygate
+    ports:
+      - "15432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentpaygate -d agentpaygate"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  psp-sim:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.psp
+    environment:
+      PSP_PORT: "8081"
+      GATEWAY_WEBHOOK_URL: "http://gateway:8080/webhooks/psp"
+      WEBHOOK_SECRET: "compose-webhook-secret"
+    ports:
+      - "18081:8081"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8081 && printf 'GET /actuator/health HTTP/1.0\\r\\n\\r\\n' >&3 && head -1 <&3 | grep -q 200"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 20s
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.gateway
+    depends_on:
+      postgres:
+        condition: service_healthy
+      psp-sim:
+        condition: service_healthy
+    environment:
+      GATEWAY_DB_URL: "jdbc:postgresql://postgres:5432/agentpaygate"
+      GATEWAY_DB_USER: "agentpaygate"
+      GATEWAY_DB_PASSWORD: "agentpaygate"
+      PSP_BASE_URL: "http://psp-sim:8081"
+      GATEWAY_PORT: "8080"
+      GATEWAY_ADMIN_TOKEN: "compose-admin-token"
+      WEBHOOK_SECRET: "compose-webhook-secret"
+      PSP_TIMEOUT_MS: "1500"
+    ports:
+      - "18080:8080"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /actuator/health HTTP/1.0\\r\\n\\r\\n' >&3 && head -1 <&3 | grep -q 200"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 25s
+
+  edge:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.edge
+    depends_on:
+      gateway:
+        condition: service_healthy
+    environment:
+      EDGE_ADDR: ":8088"
+      EDGE_UPSTREAM: "http://gateway:8080"
+      EDGE_RATE_PER_SECOND: "20"
+      EDGE_RATE_BURST: "40"
+    ports:
+      - "18088:8088"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8088/-/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  console:
+    profiles: ["ui"]
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.console
+    depends_on:
+      gateway:
+        condition: service_healthy
+    ports:
+      - "18090:80"
+
+  prometheus:
+    profiles: ["monitoring"]
+    image: prom/prometheus:v2.54.1
+    depends_on:
+      gateway:
+        condition: service_healthy
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "19090:9090"
+
+  grafana:
+    profiles: ["monitoring"]
+    image: grafana/grafana:11.2.0
+    depends_on:
+      - prometheus
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "13000:3000"
+
+volumes:
+  pgdata:
