@@ -27,7 +27,9 @@ if compgen -G "*/target/surefire-reports/*.xml" > /dev/null; then
 import glob, sys, xml.etree.ElementTree as ET
 root = sys.argv[1]
 tests = failures = skipped = 0
-for path in glob.glob(f"{root}/*/target/surefire-reports/*.xml"):
+# Integration tests live in failsafe-reports, unit tests in surefire-reports; count both.
+for path in glob.glob(f"{root}/*/target/surefire-reports/*.xml") + \
+        glob.glob(f"{root}/*/target/failsafe-reports/*.xml"):
     try:
         suite = ET.parse(path).getroot()
     except ET.ParseError:

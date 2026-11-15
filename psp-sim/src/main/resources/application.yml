@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: agentpaygate-psp-sim
+server:
+  port: ${PSP_PORT:8081}
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+psp:
+  webhook-url: ${GATEWAY_WEBHOOK_URL:http://localhost:8080/webhooks/psp}
+  webhook-secret: ${WEBHOOK_SECRET:demo-webhook-secret}
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} level=%-5level logger=%logger{20} msg=%msg%n"

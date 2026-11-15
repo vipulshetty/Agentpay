@@ -17,6 +17,10 @@ secrets/
 .env
 .env.*
 
+# Local run directory (logs, demo API key) and generated demo mandates
+.run/
+demo/mandates/
+
 # Generated reports and local run artefacts
 docs/generated/
 deploy/.kube/

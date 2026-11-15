@@ -65,3 +65,33 @@ Known gaps / risks:
     regenerates it.
 Decisions made (ADRs): none new; ADR-002 still governs mandate signing.
 ```
+
+---
+
+```
+PHASE 3: Gateway, provider simulator and the MCP surface  -  GATE: PASS
+Commands run:
+  ./mvnw -B verify                                       -> exit 0, tests: 91/0/0 (0 skipped)
+  node scripts/mcp-smoke.mjs                             -> exit 0, 5 tools, real payment captured
+  curl -s localhost:8090/v3/api-docs -o docs/api/openapi.json
+                                                         -> 13 paths, OpenAPI 3.1.0
+  ./scripts/demo-setup.sh                                -> exit 0, agent + mandate + funding
+Test counts: ledger 14, policy 33, payments 28, sim 4, gateway integration 12.
+Files added/changed: gateway-app (Flyway V1/V2, repositories, PaymentService, OutboxWorker,
+  WebhookService, ReconciliationService, AdminService, admin REST API, MCP tools, security),
+  psp-sim (charges, refunds, statement, failure modes, HMAC webhooks), pom.xml (spring-ai 1.1.8,
+  psp-sim module), scripts/demo-setup.sh, scripts/mcp-smoke.mjs, scripts/verify-all.sh,
+  docs/api/openapi.json, .gitignore
+Docs written: docs/walkthrough/phase-3.md, docs/decisions/ADR-003-mcp-transport.md,
+  docs/evidence/phase-3-verify.txt, docs/evidence/phase-3-mcp-smoke.txt
+Known gaps / risks:
+  - The integration suite needs the psp-sim jar built first; the full reactor build does that in
+    order, a gateway-only build does not.
+  - OpenAPI covers the admin API and webhooks. The MCP surface is described by tools/list.
+  - The integration tests share one Postgres container and one Spring context, ordered, with a
+    distinct agent and merchant per test. They are not isolated databases.
+  - Phase 2 and Phase 3 were committed as two commits after both gates passed, because the
+    working tree carried both phases during the Phase 3 debugging. Recorded rather than
+    pretended otherwise.
+Decisions made (ADRs): ADR-003 (MCP over Streamable HTTP; Spring AI 1.1.8 pin).
+```

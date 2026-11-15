@@ -1,0 +1,13 @@
+== MCP smoke over Streamable HTTP ==
+2026-11-15T19:30:35Z
+$ node scripts/mcp-smoke.mjs
+server: agentpaygate 0.1.0 (session established)
+tools (5): get_payment_status, request_payment, describe_deny_reasons, get_remaining_budget, list_my_mandates
+list_my_mandates: [{"currency":"INR","expiresAt":4102444800,"mandateId":"mandate-demo","maxTotal":2000000,"remainingTotal":1987655}]
+get_remaining_budget: {"currency":"INR","maxTotal":2000000,"remainingTotal":1987655,"reservedTotal":0,"remainingToday":487655,"expiresAt":4102444800,"spentTotal":12345,"mandateId":"mandate-demo"}
+describe_deny_reasons: ? codes
+request_payment: {"paymentId":"pay_01e19960-afbb-4a3b-ab20-73ef87e273b2","state":"AUTHORIZING","approved":true,"amountMinor":12345,"deniedReason":"","replayed":false}
+get_payment_status: {"amountMinor":12345,"capturedMinor":0,"currency":"INR","paymentId":"pay_01e19960-afbb-4a3b-ab20-73ef87e273b2","providerRef":"","reasonCode":"","refundedMinor":0,"state":"AUTHORIZING"}
+
+MCP smoke test passed.
+exit 0

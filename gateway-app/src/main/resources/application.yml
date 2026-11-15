@@ -1,0 +1,61 @@
+spring:
+  application:
+    name: agentpaygate-gateway
+  datasource:
+    url: ${GATEWAY_DB_URL:jdbc:postgresql://localhost:5432/agentpaygate}
+    username: ${GATEWAY_DB_USER:agentpaygate}
+    password: ${GATEWAY_DB_PASSWORD:agentpaygate}
+    hikari:
+      maximum-pool-size: ${GATEWAY_DB_POOL:8}
+  flyway:
+    enabled: true
+  ai:
+    mcp:
+      server:
+        name: agentpaygate
+        version: 0.1.0
+        protocol: STREAMABLE
+        capabilities:
+          tool: true
+          resource: false
+          prompt: false
+          completion: false
+
+server:
+  port: ${GATEWAY_PORT:8080}
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: agentpaygate-gateway
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+
+agentpaygate:
+  admin-token: ${GATEWAY_ADMIN_TOKEN:demo-admin-token}
+  psp-base-url: ${PSP_BASE_URL:http://localhost:8081}
+  psp-timeout-ms: ${PSP_TIMEOUT_MS:2000}
+  webhook-secret: ${WEBHOOK_SECRET:demo-webhook-secret}
+  webhook-tolerance-seconds: 300
+  outbox:
+    poll-interval-ms: ${OUTBOX_POLL_INTERVAL_MS:250}
+    max-attempts: 5
+    enabled: ${OUTBOX_ENABLED:true}
+  ledger:
+    # Every agent wallet starts empty and is funded through the admin API in this simulation.
+    external-account-ref: EXTERNAL
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} level=%-5level logger=%logger{20} agentId=%X{agentId:-} paymentId=%X{paymentId:-} correlationId=%X{correlationId:-} msg=%msg%n"
