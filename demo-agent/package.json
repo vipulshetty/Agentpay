@@ -1,0 +1,16 @@
+{
+  "name": "agentpaygate-demo-agent",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Reference MCP agent for AgentPayGate: happy path plus abuse cases",
+  "scripts": {
+    "build": "tsc --noEmit && tsc",
+    "check": "tsc --noEmit",
+    "demo": "node dist/main.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "typescript": "^5.6.3"
+  }
+}

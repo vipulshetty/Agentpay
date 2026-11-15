@@ -41,6 +41,17 @@ if [ "${existing_key#apg_}" = "$existing_key" ]; then
   echo "created agent $AGENT_ID (demo API key stored in .run/api-key.txt, git-ignored)"
 fi
 
+# The gateway resolves merchant categories from its own directory, so the demo merchant has to be
+# registered here: an agent must not be able to decide that it is paying a grocer.
+curl -s -X POST "$BASE/admin/merchants" \
+  -H "X-Admin-Token: $ADMIN_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"merchantId":"merchant-bookshop","category":"groceries"}' > /dev/null
+curl -s -X POST "$BASE/admin/merchants" \
+  -H "X-Admin-Token: $ADMIN_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"merchantId":"merchant-cafe","category":"restaurants"}' > /dev/null
+
+echo "registered demo merchants"
+
 public_b64=$(grep -v -- '-----' "secrets/$KEY_ID-public.key" | tr -d '\n')
 curl -s -X POST "$BASE/admin/issuer-keys" \
   -H "X-Admin-Token: $ADMIN_TOKEN" -H 'Content-Type: application/json' \

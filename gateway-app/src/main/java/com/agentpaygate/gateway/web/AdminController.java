@@ -31,16 +31,19 @@ public class AdminController {
     private final AuditRepository audit;
     private final PaymentRepository payments;
     private final com.agentpaygate.gateway.repo.LedgerRepository ledger;
+    private final com.agentpaygate.gateway.repo.MerchantRepository merchants;
 
     public AdminController(AdminService admin, PaymentService paymentService,
                            ReconciliationService reconciliation, AuditRepository audit,
-                           PaymentRepository payments, com.agentpaygate.gateway.repo.LedgerRepository ledger) {
+                           PaymentRepository payments, com.agentpaygate.gateway.repo.LedgerRepository ledger,
+                           com.agentpaygate.gateway.repo.MerchantRepository merchants) {
         this.admin = admin;
         this.paymentService = paymentService;
         this.reconciliation = reconciliation;
         this.audit = audit;
         this.payments = payments;
         this.ledger = ledger;
+        this.merchants = merchants;
     }
 
     public record CreateAgentRequest(String agentId, String displayName) {
@@ -50,6 +53,27 @@ public class AdminController {
     }
 
     public record FundRequest(String agentId, long amountMinor, String currency) {
+    }
+
+    public record MerchantRequest(String merchantId, String category) {
+    }
+
+    /**
+     * Registers a merchant and its category. This is what makes a category rule enforceable: the
+     * gateway resolves categories here, not from the request that wants to spend.
+     */
+    @PostMapping("/merchants")
+    public ResponseEntity<Map<String, Object>> registerMerchant(@RequestBody MerchantRequest request) {
+        merchants.upsert(request.merchantId(), request.category());
+        audit.append("operator", "MERCHANT_REGISTERED", request.merchantId(),
+                "category=" + request.category());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(Map.of("merchantId", request.merchantId(), "category", request.category()));
+    }
+
+    @GetMapping("/merchants")
+    public List<Map<String, Object>> merchants() {
+        return merchants.list();
     }
 
     @PostMapping("/agents")

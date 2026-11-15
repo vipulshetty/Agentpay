@@ -230,11 +230,19 @@ class GatewayIT {
                 List.of(merchant), List.of(), notBefore, expiresAt, "nonce-" + mandateId);
     }
 
+    private void registerMerchant(String merchantId, String category) {
+        ResponseEntity<Map> response = rest.exchange("/admin/merchants", HttpMethod.POST,
+                new HttpEntity<>(Map.of("merchantId", merchantId, "category", category), adminHeaders()),
+                Map.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    }
+
     /** Creates agent, issuer key (idempotent), mandate and funding for one test. */
     private Mandate scenario(String agentId, String mandateId, String merchant, long perTx, long total,
                              long perDay, long funding) {
         createAgent(agentId);
         registerIssuerKey();
+        registerMerchant(merchant, "groceries");
         long now = java.time.Instant.now().getEpochSecond();
         Mandate mandate = mandate(mandateId, agentId, perTx, total, perDay, now - 60, now + 3_600, merchant);
         uploadMandate(mandate);
@@ -244,6 +252,7 @@ class GatewayIT {
 
     private PaymentService.PaymentResult request(String agentId, String mandateId, long amount,
                                                  String merchant, String idemKey) {
+        registerMerchant(merchant, "groceries");
         return payments.requestPayment(agentId, new PaymentService.RequestCommand(
                 mandateId, merchant, "groceries", amount, "INR", idemKey, idemKey));
     }
@@ -597,6 +606,7 @@ class GatewayIT {
         long now = Instant.now().getEpochSecond();
         uploadMandate(mandate("mandate-mcp", agentId, 100_000, 500_000, 400_000, now - 60, now + 3_600,
                 "merchant-mcp"));
+        registerMerchant("merchant-mcp", "groceries");
         fund(agentId, 1_000_000);
 
         HttpClient client = HttpClient.newHttpClient();

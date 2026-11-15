@@ -144,3 +144,32 @@ Known gaps / risks:
   - The edge authenticates nothing by design; the gateway remains the only authority.
 Decisions made (ADRs): none new.
 ```
+
+---
+
+```
+PHASE 6: TypeScript console and demo agent  -  GATE: PASS
+Commands run:
+  (cd console && npm run --silent check && npm run build)
+                                                         -> exit 0, 9.76 kB JS, 3.02 kB CSS
+  (cd demo-agent && npm run --silent check && npm run build)
+                                                         -> exit 0
+  node demo-agent/dist/main.js (ABUSE_OUTPUT=docs/ABUSE-RESULTS.md)
+                                                         -> exit 0, 7/7 abuse cases refused
+  ./scripts/verify-all.sh                                -> exit 0, all four components PASS
+Files added/changed: console (Vite + TypeScript, four views, admin API client), demo-agent
+  (MCP client, control case, seven abuse cases), scripts/demo-setup.sh (merchant registration),
+  gateway-app: V3__merchant_directory.sql, MerchantRepository, POST/GET /admin/merchants,
+  PaymentService resolves the category server-side, GatewayIT registers merchants
+Docs written: docs/walkthrough/phase-6.md, docs/ABUSE-RESULTS.md,
+  docs/evidence/phase-6-verify-all.txt
+Known gaps / risks:
+  - The demo agent found a real defect: category rules were enforced against the category the
+    agent claimed, so a category allowlist could be bypassed by any agent that typed the allowed
+    category. Fixed with a server-side merchant directory; the abuse case now denies. The first
+    run of the suite is what surfaced it, which is why the suite exists.
+  - The console has no automated tests: it is type-checked and built, and was loaded by hand.
+  - The abuse suite is seven fixed cases, not a fuzzer.
+Decisions made (ADRs): none new; the merchant-directory requirement is recorded here and in
+  docs/walkthrough/phase-6.md.
+```

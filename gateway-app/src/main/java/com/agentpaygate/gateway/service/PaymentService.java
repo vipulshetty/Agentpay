@@ -5,6 +5,7 @@ import com.agentpaygate.gateway.repo.IdempotencyRepository;
 import com.agentpaygate.gateway.repo.IssuerKeyRepository;
 import com.agentpaygate.gateway.repo.MandateNonceRepository;
 import com.agentpaygate.gateway.repo.MandateRepository;
+import com.agentpaygate.gateway.repo.MerchantRepository;
 import com.agentpaygate.gateway.repo.OutboxRepository;
 import com.agentpaygate.gateway.repo.PaymentRepository;
 import com.agentpaygate.gateway.repo.SpendRepository;
@@ -54,12 +55,14 @@ public class PaymentService {
     private final IdempotencyRepository idempotency;
     private final OutboxRepository outbox;
     private final AuditRepository audit;
+    private final MerchantRepository merchants;
     private final MeterRegistry meters;
     private final Clock clock;
 
     public PaymentService(PaymentRepository payments, MandateRepository mandates, IssuerKeyRepository issuerKeys,
                           SpendRepository spend, MandateNonceRepository nonces, IdempotencyRepository idempotency,
-                          OutboxRepository outbox, AuditRepository audit, MeterRegistry meters, Clock clock) {
+                          OutboxRepository outbox, AuditRepository audit, MerchantRepository merchants,
+                          MeterRegistry meters, Clock clock) {
         this.payments = payments;
         this.mandates = mandates;
         this.issuerKeys = issuerKeys;
@@ -68,6 +71,7 @@ public class PaymentService {
         this.idempotency = idempotency;
         this.outbox = outbox;
         this.audit = audit;
+        this.merchants = merchants;
         this.meters = meters;
         this.clock = clock;
     }
@@ -128,8 +132,12 @@ public class PaymentService {
         }
 
         SpendState before = spend.lockAndGet(command.mandateId(), SpendState.dayKeyOf(now));
+        // The category comes from the merchant directory, never from the agent. An agent can claim
+        // any category for any merchant, so a category rule that trusted the claim would allow it
+        // to pay anyone by typing "groceries".
+        String verifiedCategory = merchants.categoryOf(command.merchantId()).orElse("");
         PaymentRequest policyRequest = new PaymentRequest(paymentId, command.idempotencyKey(), agentId,
-                command.merchantId(), command.merchantCategory(), command.amountMinor(),
+                command.merchantId(), verifiedCategory, command.amountMinor(),
                 command.currency(), requestNonce);
         PolicyContext context = new PolicyContext(now, issuerKeys.snapshot(),
                 nonces.isUsed(command.mandateId(), requestNonce));
@@ -137,7 +145,8 @@ public class PaymentService {
 
         if (decision.denied()) {
             meters.counter("agentpaygate.policy.denied", "reason", decision.reason().name()).increment();
-            persistDenied(agentId, command, paymentId, providerIdemKey, requestNonce, decision, now);
+            persistDenied(agentId, command, verifiedCategory, paymentId, providerIdemKey, requestNonce,
+                    decision, now);
             return new PaymentResult(paymentId, PaymentState.DENIED.name(), decision.reason().name(),
                     command.amountMinor(), false);
         }
@@ -145,7 +154,8 @@ public class PaymentService {
         if (!nonces.register(command.mandateId(), requestNonce, paymentId)) {
             meters.counter("agentpaygate.policy.denied", "reason", DenyReason.REPLAYED.name()).increment();
             Decision replayed = Decision.deny(DenyReason.REPLAYED, "nonce already used");
-            persistDenied(agentId, command, paymentId, providerIdemKey, requestNonce, replayed, now);
+            persistDenied(agentId, command, verifiedCategory, paymentId, providerIdemKey, requestNonce,
+                    replayed, now);
             return new PaymentResult(paymentId, PaymentState.DENIED.name(), DenyReason.REPLAYED.name(),
                     command.amountMinor(), false);
         }
@@ -155,7 +165,7 @@ public class PaymentService {
                 .apply(PaymentEvent.of(paymentId + "-submitted", PaymentEventType.AUTH_STARTED, 0L, now));
 
         payments.insert(new PaymentRepository.PaymentRow(paymentId, agentId, command.mandateId(),
-                command.merchantId(), command.merchantCategory(), command.currency(), command.amountMinor(),
+                command.merchantId(), verifiedCategory, command.currency(), command.amountMinor(),
                 payment.state(), 0L, 0L, null, providerIdemKey, null, requestNonce,
                 Instant.ofEpochSecond(now), Instant.ofEpochSecond(now)));
         payments.appendEvent(paymentId, PaymentEvent.of(paymentId + "-submitted",
@@ -174,10 +184,10 @@ public class PaymentService {
         return new PaymentResult(paymentId, payment.state().name(), null, command.amountMinor(), false);
     }
 
-    private void persistDenied(String agentId, RequestCommand command, String paymentId, String providerIdemKey,
-                               String requestNonce, Decision decision, long now) {
+    private void persistDenied(String agentId, RequestCommand command, String verifiedCategory, String paymentId,
+                               String providerIdemKey, String requestNonce, Decision decision, long now) {
         payments.insert(new PaymentRepository.PaymentRow(paymentId, agentId, command.mandateId(),
-                command.merchantId(), command.merchantCategory(), command.currency(), command.amountMinor(),
+                command.merchantId(), verifiedCategory, command.currency(), command.amountMinor(),
                 PaymentState.DENIED, 0L, 0L, null, providerIdemKey, decision.reason().name(), requestNonce,
                 Instant.ofEpochSecond(now), Instant.ofEpochSecond(now)));
         payments.appendEvent(paymentId, PaymentEvent.of(paymentId + "-denied", PaymentEventType.POLICY_DENIED,
