@@ -1,0 +1,27 @@
+# Java
+target/
+*.class
+.mvn/wrapper/maven-wrapper.jar
+
+# Node
+node_modules/
+.next/
+out/
+dist/
+*.tsbuildinfo
+
+# Demo secrets and generated keys (never real secrets)
+secrets/
+*.pem
+*.p12
+.env
+.env.*
+
+# Generated reports and local run artefacts
+docs/generated/
+deploy/.kube/
+coverage/
+playwright-report/
+test-results/
+*.log
+.docker/

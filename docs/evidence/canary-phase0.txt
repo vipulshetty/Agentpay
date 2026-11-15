@@ -1,0 +1,91 @@
+# Phase 0 canary: does the purity rule fire?
+# command: ./scripts/canary-phase0.sh
+# probe added: policy-core/src/main/java/com/agentpaygate/policy/ClockProbe.java reads the wall clock
+
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] --------------------< com.agentpaygate:policy-core >--------------------
+[INFO] Building policy-core 0.1.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ policy-core ---
+[INFO] skip non existing resourceDirectory /run/media/vipul/New Volume/PROJECTS/AgentPayGate/policy-core/src/main/resources
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ policy-core ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 2 source files with javac [debug parameters release 21] to target/classes
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ policy-core ---
+[INFO] skip non existing resourceDirectory /run/media/vipul/New Volume/PROJECTS/AgentPayGate/policy-core/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ policy-core ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 2 source files with javac [debug parameters release 21] to target/test-classes
+[INFO] 
+[INFO] --- surefire:3.5.2:test (default-test) @ policy-core ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+[INFO] Running com.agentpaygate.policy.AmountsTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.143 s -- in com.agentpaygate.policy.AmountsTest
+[INFO] Running com.agentpaygate.policy.DeterminismTest
+[ERROR] Tests run: 3, Failures: 2, Errors: 0, Skipped: 0, Time elapsed: 1.148 s <<< FAILURE! -- in com.agentpaygate.policy.DeterminismTest
+[ERROR] com.agentpaygate.policy.DeterminismTest.sourceContainsNoClockSynchronisationOrHashOrderedCollections -- Time elapsed: 0.057 s <<< FAILURE!
+java.lang.AssertionError: 
+[forbidden tokens in pure-core sources] 
+Expecting empty but was: ["src/main/java/com/agentpaygate/policy/ClockProbe.java:9 contains 'java.time'"]
+	at com.agentpaygate.policy.DeterminismTest.sourceContainsNoClockSynchronisationOrHashOrderedCollections(DeterminismTest.java:95)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+[ERROR] com.agentpaygate.policy.DeterminismTest.noWallClockConcurrencyIoNetworkingOrFrameworkDependencies -- Time elapsed: 0.077 s <<< FAILURE!
+java.lang.AssertionError: 
+Architecture Violation [Priority: MEDIUM] - Rule 'no classes that reside in a package 'com.agentpaygate.policy..' should depend on classes that reside in any package ['java.time..', 'java.util.concurrent..', 'java.io..', 'java.nio.file..', 'java.nio.channels..', 'java.net..', 'java.sql..', 'javax.sql..', 'org.springframework..', 'jakarta.persistence..'], because pure cores take time and randomness as parameters and never perform I/O' was violated (2 times):
+Method <com.agentpaygate.policy.ClockProbe.now()> calls method <java.time.Instant.getEpochSecond()> in (ClockProbe.java:9)
+Method <com.agentpaygate.policy.ClockProbe.now()> calls method <java.time.Instant.now()> in (ClockProbe.java:9)
+	at com.tngtech.archunit.lang.ArchRule$Assertions.assertNoViolation(ArchRule.java:94)
+	at com.tngtech.archunit.lang.ArchRule$Assertions.check(ArchRule.java:86)
+	at com.tngtech.archunit.lang.ArchRule$Factory$SimpleArchRule.check(ArchRule.java:165)
+	at com.agentpaygate.policy.DeterminismTest.noWallClockConcurrencyIoNetworkingOrFrameworkDependencies(DeterminismTest.java:59)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+[INFO] 
+[INFO] Results:
+[INFO] 
+[ERROR] Failures: 
+[ERROR]   DeterminismTest.noWallClockConcurrencyIoNetworkingOrFrameworkDependencies:59 Architecture Violation [Priority: MEDIUM] - Rule 'no classes that reside in a package 'com.agentpaygate.policy..' should depend on classes that reside in any package ['java.time..', 'java.util.concurrent..', 'java.io..', 'java.nio.file..', 'java.nio.channels..', 'java.net..', 'java.sql..', 'javax.sql..', 'org.springframework..', 'jakarta.persistence..'], because pure cores take time and randomness as parameters and never perform I/O' was violated (2 times):
+Method <com.agentpaygate.policy.ClockProbe.now()> calls method <java.time.Instant.getEpochSecond()> in (ClockProbe.java:9)
+Method <com.agentpaygate.policy.ClockProbe.now()> calls method <java.time.Instant.now()> in (ClockProbe.java:9)
+[ERROR]   DeterminismTest.sourceContainsNoClockSynchronisationOrHashOrderedCollections:95 [forbidden tokens in pure-core sources] 
+Expecting empty but was: ["src/main/java/com/agentpaygate/policy/ClockProbe.java:9 contains 'java.time'"]
+[INFO] 
+[ERROR] Tests run: 5, Failures: 2, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  4.403 s
+[INFO] Finished at: 2026-11-15T23:07:08+05:30
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.2:test (default-test) on project policy-core: There are test failures.
+[ERROR] 
+[ERROR] See /run/media/vipul/New Volume/PROJECTS/AgentPayGate/policy-core/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
+
+exit code: 1 (expected non-zero)

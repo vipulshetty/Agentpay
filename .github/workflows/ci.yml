@@ -1,0 +1,80 @@
+name: ci
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  java:
+    name: java (jdk 21)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: mvn verify
+        run: ./mvnw -B verify
+      - name: fail on self-skipped tests
+        run: |
+          python3 - <<'PY'
+          import glob, sys, xml.etree.ElementTree as ET
+          skipped = 0
+          for path in glob.glob("*/target/surefire-reports/*.xml"):
+              suite = ET.parse(path).getroot()
+              skipped += int(suite.get("skipped", 0))
+          print("skipped tests:", skipped)
+          sys.exit(1 if skipped else 0)
+          PY
+
+  go:
+    name: go (edge-proxy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+      - name: vet and race tests
+        working-directory: edge-proxy
+        run: |
+          go vet ./...
+          go test -race ./...
+
+  typescript:
+    name: typescript (console, demo-agent)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: install
+        run: |
+          npm --prefix console ci
+          npm --prefix demo-agent ci
+      - name: check
+        run: |
+          npm --prefix console run check
+          npm --prefix demo-agent run check
+
+  integration:
+    name: integration (docker: postgres, psp-sim, gateway)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: integration tests (Testcontainers)
+        run: ./mvnw -B -pl gateway-app -am verify -DskipUnitTests=false
+      - name: compose smoke test
+        run: |
+          docker compose -f deploy/docker-compose.yml up -d --build
+          ./scripts/compose-smoke.sh
+          docker compose -f deploy/docker-compose.yml down -v
