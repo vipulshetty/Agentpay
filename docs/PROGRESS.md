@@ -95,3 +95,29 @@ Known gaps / risks:
     pretended otherwise.
 Decisions made (ADRs): ADR-003 (MCP over Streamable HTTP; Spring AI 1.1.8 pin).
 ```
+
+---
+
+```
+PHASE 4: Deterministic simulation lab  -  GATE: PASS
+Commands run:
+  ./mvnw -B verify                                       -> exit 0, tests: 98/0/0 (0 skipped)
+  ./scripts/sim-gauntlet.sh 40 80                        -> exit 0, 6/6 planted bugs caught
+  java -cp ... SimTraceMain 7 30 NONE docs/evidence/phase-4-trace-sample.jsonl
+                                                         -> exit 0, traceDigest 1dfa49a9..., 42 steps
+Test counts: ledger 14, policy 33, payments 28, sim 11, gateway integration 12.
+Files added/changed: sim (VirtualClock already present; SimRandom, SimConfig, PlantedBug, Trace,
+  Invariant, SimWorld, Simulation, Gauntlet, Shrinker, SimLabTest), mandate-cli (sim dependency,
+  SimGauntletMain, SimTraceMain), scripts/sim-gauntlet.sh
+Docs written: docs/walkthrough/phase-4.md, docs/evidence/phase-4-gauntlet.txt,
+  docs/evidence/phase-4-verify.txt, docs/evidence/phase-4-trace-sample.jsonl
+Known gaps / risks:
+  - The lab models the rules, not the gateway: no database, no outbox, no concurrency. The
+    integration suite covers the plumbing.
+  - The gauntlet proves six known defect classes are observable within 40 seeds. It does not
+    prove the invariant set catches defects nobody has thought of.
+  - Two defects were found in the lab itself during this phase (an overflow in the generator, and
+    a crash instead of a violation when a planted bug made a spend figure negative). Both were
+    fixed in the lab's code and are described in docs/walkthrough/phase-4.md.
+Decisions made (ADRs): none new.
+```

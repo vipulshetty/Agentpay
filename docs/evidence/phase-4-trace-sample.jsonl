@@ -1,0 +1,42 @@
+{"at":1700000000,"seq":0,"kind":"world.start","detail":"seed=7 funding=1000000"}
+{"at":1700000028,"seq":1,"kind":"request.approved","detail":"pay-1 merchant-cafe 1587"}
+{"at":1700000028,"seq":2,"kind":"charge.captured","detail":"pay-1 psp_00001"}
+{"at":1700000044,"seq":3,"kind":"reconcile","detail":"nothing unknown"}
+{"at":1700000057,"seq":4,"kind":"refund.applied","detail":"pay-1 1587"}
+{"at":1700000071,"seq":5,"kind":"request.approved","detail":"pay-4 merchant-cafe 44064"}
+{"at":1700000071,"seq":6,"kind":"charge.captured","detail":"pay-4 psp_00002"}
+{"at":1700000083,"seq":7,"kind":"refund.applied","detail":"pay-4 44064"}
+{"at":1700000111,"seq":8,"kind":"request.replay","detail":"idem-4 -> pay-4"}
+{"at":1700000141,"seq":9,"kind":"request.approved","detail":"pay-7 merchant-cafe 15616"}
+{"at":1700000141,"seq":10,"kind":"charge.captured","detail":"pay-7 psp_00003"}
+{"at":1700000154,"seq":11,"kind":"request.denied","detail":"AMOUNT_OVER_TX_LIMIT"}
+{"at":1700000162,"seq":12,"kind":"request.denied","detail":"AMOUNT_OVER_TX_LIMIT"}
+{"at":1700000183,"seq":13,"kind":"request.approved","detail":"pay-10 merchant-cafe 33342"}
+{"at":1700000183,"seq":14,"kind":"charge.timeout","detail":"pay-10 (provider may have charged)"}
+{"at":1700000204,"seq":15,"kind":"request.approved","detail":"pay-11 merchant-grocer 47963"}
+{"at":1700000204,"seq":16,"kind":"charge.captured","detail":"pay-11 psp_00005"}
+{"at":1700000212,"seq":17,"kind":"request.replay","detail":"idem-11 -> pay-11"}
+{"at":1700000237,"seq":18,"kind":"request.replay","detail":"idem-11 -> pay-11"}
+{"at":1700000263,"seq":19,"kind":"request.approved","detail":"pay-14 merchant-cafe 32980"}
+{"at":1700000263,"seq":20,"kind":"charge.captured","detail":"pay-14 psp_00006"}
+{"at":1700000290,"seq":21,"kind":"refund.applied","detail":"pay-11 47963"}
+{"at":1700000295,"seq":22,"kind":"webhook.delivered","detail":"REFUNDED pay-1 -> NO_CHANGE"}
+{"at":1700000320,"seq":23,"kind":"reconcile.resolved","detail":"pay-10"}
+{"at":1700000335,"seq":24,"kind":"request.replay","detail":"idem-14 -> pay-14"}
+{"at":1700000350,"seq":25,"kind":"request.approved","detail":"pay-19 merchant-grocer 46394"}
+{"at":1700000350,"seq":26,"kind":"charge.captured","detail":"pay-19 psp_00007"}
+{"at":1700000359,"seq":27,"kind":"request.replay","detail":"idem-19 -> pay-19"}
+{"at":1700000387,"seq":28,"kind":"request.approved","detail":"pay-21 merchant-cafe 24144"}
+{"at":1700000387,"seq":29,"kind":"charge.captured","detail":"pay-21 psp_00008"}
+{"at":1700000401,"seq":30,"kind":"reconcile","detail":"nothing unknown"}
+{"at":1700000424,"seq":31,"kind":"request.approved","detail":"pay-23 merchant-grocer 22173"}
+{"at":1700000424,"seq":32,"kind":"charge.timeout","detail":"pay-23 (provider may have charged)"}
+{"at":1700000448,"seq":33,"kind":"webhook.duplicate","detail":"CAPTURED pay-7 -> DUPLICATE"}
+{"at":1700000473,"seq":34,"kind":"request.conflict","detail":"idem-23"}
+{"at":1700000476,"seq":35,"kind":"request.approved","detail":"pay-26 merchant-grocer 40969"}
+{"at":1700000476,"seq":36,"kind":"charge.captured","detail":"pay-26 psp_00010"}
+{"at":1700000489,"seq":37,"kind":"reconcile.resolved","detail":"pay-23"}
+{"at":1700000514,"seq":38,"kind":"refund.applied","detail":"pay-19 46394"}
+{"at":1700000533,"seq":39,"kind":"request.approved","detail":"pay-29 merchant-grocer 46296"}
+{"at":1700000533,"seq":40,"kind":"charge.declined","detail":"pay-29"}
+{"at":1700000549,"seq":41,"kind":"request.replay","detail":"idem-29 -> pay-29"}

@@ -1,0 +1,13 @@
+== simulation gauntlet ==
+2026-11-15T19:42:23Z
+$ ./scripts/sim-gauntlet.sh 40 80
+simulation gauntlet: seeds=40 steps=80
+clean runs: 40/40 (no invariant violated)
+DOUBLE_CAPTURE_ON_REPLAY           caught at seed=1 by LEDGER_MATCHES_PAYMENTS
+RESERVATION_LEAK_ON_DENY           caught at seed=1 by BUDGET_WITHIN_MANDATE
+CAPTURE_WITHOUT_RESERVATION_RELEASE caught at seed=1 by NO_REFUSED_OPERATIONS
+IGNORE_TOTAL_LIMIT                 caught at seed=1 by BUDGET_WITHIN_MANDATE
+REFUND_LEDGER_WITHOUT_STATE        caught at seed=1 by LEDGER_MATCHES_PAYMENTS
+IDEMPOTENCY_IGNORED                caught at seed=1 by IDEMPOTENCY_UNIQUE
+result: all planted bugs caught
+exit 0

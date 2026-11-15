@@ -1,0 +1,16 @@
+== full reactor build (phase 4) ==
+2026-11-15T19:44:02Z
+$ ./mvnw -B verify
+exit 0
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.619 s -- in com.agentpaygate.sim.SimLabTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.004 s -- in com.agentpaygate.sim.VirtualClockTest
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 22.01 s -- in com.agentpaygate.gateway.GatewayIT
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0
+[INFO] ledger-core ........................................ SUCCESS [  2.869 s]
+[INFO] policy-core ........................................ SUCCESS [  2.064 s]
+[INFO] payments-core ...................................... SUCCESS [  1.956 s]
+[INFO] sim ................................................ SUCCESS [  7.602 s]
+[INFO] mandate-cli ........................................ SUCCESS [  0.229 s]
+[INFO] gateway-app ........................................ SUCCESS [ 24.728 s]
+[INFO] psp-sim ............................................ SUCCESS [  0.046 s]

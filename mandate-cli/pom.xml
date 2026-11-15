@@ -15,6 +15,11 @@
   <dependencies>
     <dependency>
       <groupId>com.agentpaygate</groupId>
+      <artifactId>sim</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.agentpaygate</groupId>
       <artifactId>policy-core</artifactId>
       <version>${project.version}</version>
     </dependency>
