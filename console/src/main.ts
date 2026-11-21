@@ -1,6 +1,8 @@
 import "./style.css";
 import { AdminApi, ApiError } from "./api";
 import { el } from "./dom";
+import { landingScreen, startLanding } from "./landing";
+import { logoMark } from "./logo";
 import { auditView, mandatesView, overviewView, paymentsView } from "./views";
 
 type Tab = "overview" | "payments" | "mandates" | "audit";
@@ -9,7 +11,6 @@ interface State {
   token: string;
   tab: Tab;
   paymentId: string;
-  error: string;
   autoRefresh: boolean;
 }
 
@@ -19,7 +20,6 @@ const state: State = {
   token: sessionStorage.getItem("apg.adminToken") ?? "",
   tab: "overview",
   paymentId: "",
-  error: "",
   autoRefresh: false,
 };
 
@@ -43,11 +43,31 @@ function api(): AdminApi {
   return new AdminApi(import.meta.env.VITE_GATEWAY_URL ?? "", state.token);
 }
 
+function brand(): HTMLElement {
+  return el("a", { className: "brand", href: "#/overview" }, [
+    logoMark(),
+    el("span", { className: "brand-name" }, [
+      document.createTextNode("Agent"),
+      el("span", { className: "brand-name-accent", text: "Pay" }),
+    ]),
+  ]);
+}
+
+function connect(token: string): void {
+  state.token = token;
+  sessionStorage.setItem("apg.adminToken", token);
+  void render();
+}
+
+/* ------------------------------------------------------------------ console chrome */
+
 function header(): HTMLElement {
   const input = el("input", {
     type: "password",
-    placeholder: "admin token",
+    placeholder: "Admin token",
     value: state.token,
+    autocomplete: "current-password",
+    ariaLabel: "Gateway admin token",
     onInput: (event) => {
       state.token = (event.target as HTMLInputElement).value;
     },
@@ -60,19 +80,32 @@ function header(): HTMLElement {
       schedule();
     },
   });
-  return el("header", {}, [
-    el("h1", { text: "AgentPayGate" }),
-    el("span", { className: "hint", text: "simulated payments · mandate-enforced · double-entry" }),
-    el("span", { className: "spacer" }),
-    refresh,
-    el("span", { className: "hint", text: "auto-refresh" }),
+  const tokenForm = el("form", { className: "token-control" }, [
     input,
+    el("button", { className: "btn btn-primary btn-small", type: "submit", text: "Apply" }),
+  ]) as HTMLFormElement;
+  tokenForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    sessionStorage.setItem("apg.adminToken", state.token);
+    void render();
+  });
+
+  return el("header", { className: "app-header" }, [
+    brand(),
+    el("div", { className: "header-context" }, [
+      el("span", { className: "status-dot", ariaHidden: true }),
+      el("span", { text: "SIMULATED GATEWAY" }),
+    ]),
+    el("span", { className: "spacer" }),
+    el("label", { className: "refresh-control" }, [refresh, el("span", { text: "Auto refresh" })]),
+    tokenForm,
     el("button", {
-      className: "primary",
-      text: "Connect",
+      className: "btn btn-ghost btn-small",
+      type: "button",
+      text: "Disconnect",
       onClick: () => {
-        sessionStorage.setItem("apg.adminToken", state.token);
-        state.error = "";
+        state.token = "";
+        sessionStorage.removeItem("apg.adminToken");
         void render();
       },
     }),
@@ -80,33 +113,44 @@ function header(): HTMLElement {
 }
 
 function nav(): HTMLElement {
-  return el(
-    "nav",
-    {},
-    TABS.map((tab) =>
-      el("a", {
-        href: `#/${tab}`,
-        className: tab === state.tab ? "active" : "",
-        text: tab,
-      }),
+  const labels: Record<Tab, string> = {
+    overview: "Overview",
+    payments: "Payments",
+    mandates: "Mandates",
+    audit: "Audit log",
+  };
+  return el("nav", { className: "app-nav", ariaLabel: "Main navigation" }, [
+    el(
+      "div",
+      { className: "nav-inner" },
+      TABS.map((tab) =>
+        el("a", {
+          href: `#/${tab}`,
+          className: tab === state.tab ? "active" : "",
+          text: labels[tab],
+          ariaCurrent: tab === state.tab ? "page" : undefined,
+        }),
+      ),
     ),
-  );
+  ]);
+}
+
+/* ------------------------------------------------------------------ content */
+
+/** Placeholder that mirrors the real page, so a slow gateway does not leave a blank canvas. */
+function loadingSkeleton(): HTMLElement {
+  return el("div", { className: "loading-view" }, [
+    el("div", { className: "skeleton skeleton-eyebrow" }),
+    el("div", { className: "skeleton skeleton-title" }),
+    el("div", { className: "skeleton skeleton-line" }),
+    el("div", { className: "skeleton-grid" }, Array.from({ length: 6 }, () => el("div", { className: "skeleton-cell" }))),
+    el("div", { className: "skeleton skeleton-panel" }),
+  ]);
 }
 
 async function renderContent(container: HTMLElement): Promise<void> {
-  if (!state.token) {
-    container.replaceChildren(
-      el("div", { className: "empty" }, [
-        el("p", { text: "Paste the operator admin token to connect." }),
-        el("p", {
-          className: "hint",
-          text: "The demo stack uses the value of GATEWAY_ADMIN_TOKEN; scripts/demo-setup.sh writes the demo agent key, not this one.",
-        }),
-      ]),
-    );
-    return;
-  }
   const client = api();
+  const skeletonTimer = window.setTimeout(() => container.replaceChildren(loadingSkeleton()), 120);
   try {
     let node: HTMLElement;
     switch (state.tab) {
@@ -122,8 +166,10 @@ async function renderContent(container: HTMLElement): Promise<void> {
       default:
         node = await overviewView(client);
     }
+    window.clearTimeout(skeletonTimer);
     container.replaceChildren(node);
   } catch (error) {
+    window.clearTimeout(skeletonTimer);
     const message =
       error instanceof ApiError
         ? `${error.code} (${error.status}): ${error.message}`
@@ -131,16 +177,41 @@ async function renderContent(container: HTMLElement): Promise<void> {
           ? error.message
           : String(error);
     container.replaceChildren(
-      el("div", { className: "error", text: `Could not load ${state.tab}: ${message}` }),
-      el("p", { className: "hint", text: "A 401 means the admin token is missing or wrong. The default demo token is demo-admin-token." }),
+      el("div", { className: "error-panel" }, [
+        el("span", { className: "error-mark", text: "!" }),
+        el("div", {}, [
+          el("h2", { text: `Could not load ${state.tab}` }),
+          el("p", { text: message }),
+          el("p", {
+            className: "hint",
+            text: "Check that the gateway is running and your admin token is correct. The default demo token is demo-admin-token.",
+          }),
+        ]),
+      ]),
     );
   }
 }
 
 async function render(): Promise<void> {
   readHash();
-  const content = el("main");
-  app!.replaceChildren(header(), nav(), content);
+  if (!state.token) {
+    const landing = landingScreen({ onToken: connect });
+    app!.replaceChildren(landing);
+    startLanding(landing);
+    return;
+  }
+  const content = el("main", { className: "app-main" });
+  app!.replaceChildren(
+    el("div", { className: "app-shell" }, [
+      header(),
+      nav(),
+      content,
+      el("footer", { className: "app-footer" }, [
+        el("span", { text: "AGENTPAY" }),
+        el("span", { text: "SIMULATION ONLY · NO REAL MONEY MOVES" }),
+      ]),
+    ]),
+  );
   await renderContent(content);
 }
 
@@ -151,11 +222,23 @@ function schedule(): void {
     window.clearInterval(timer);
     timer = undefined;
   }
-  if (state.autoRefresh) {
+  if (state.autoRefresh && state.token) {
     timer = window.setInterval(() => void render(), 5000);
   }
+}
+
+/** Headers only separate from the page once content scrolls under them. */
+function watchHeader(): void {
+  const update = () => {
+    const scrolled = window.scrollY > 6;
+    document.querySelector(".app-header")?.classList.toggle("is-scrolled", scrolled);
+    document.querySelector(".site-header")?.classList.toggle("is-scrolled", scrolled);
+  };
+  update();
+  window.addEventListener("scroll", update, { passive: true });
 }
 
 window.addEventListener("hashchange", () => void render());
 void render();
 schedule();
+watchHeader();

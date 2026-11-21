@@ -1,5 +1,6 @@
 export interface ElOptions {
   className?: string;
+  id?: string;
   text?: string;
   title?: string;
   href?: string;
@@ -7,6 +8,11 @@ export interface ElOptions {
   value?: string;
   placeholder?: string;
   checked?: boolean;
+  autocomplete?: string;
+  required?: boolean;
+  ariaLabel?: string;
+  ariaHidden?: boolean;
+  ariaCurrent?: string;
   onClick?: (event: MouseEvent) => void;
   onInput?: (event: Event) => void;
 }
@@ -15,9 +21,15 @@ export interface ElOptions {
 export function el(tag: string, options: ElOptions = {}, children: Array<Node | string> = []): HTMLElement {
   const node = document.createElement(tag);
   if (options.className) node.className = options.className;
+  if (options.id) node.id = options.id;
   if (options.text !== undefined) node.textContent = options.text;
   if (options.title) node.title = options.title;
   if (options.placeholder) node.setAttribute("placeholder", options.placeholder);
+  if (options.autocomplete) node.setAttribute("autocomplete", options.autocomplete);
+  if (options.required && tag === "input") (node as HTMLInputElement).required = true;
+  if (options.ariaLabel) node.setAttribute("aria-label", options.ariaLabel);
+  if (options.ariaHidden !== undefined) node.setAttribute("aria-hidden", String(options.ariaHidden));
+  if (options.ariaCurrent) node.setAttribute("aria-current", options.ariaCurrent);
   if (tag === "a" && options.href) node.setAttribute("href", options.href);
   if (tag === "input") {
     const input = node as HTMLInputElement;
@@ -47,7 +59,7 @@ export function table(headers: string[], rows: Array<Array<Node | string>>): HTM
     {},
     rows.map((cells) => el("tr", {}, cells.map((cell) => el("td", {}, [cell])))),
   );
-  return el("table", {}, [head, body]);
+  return el("div", { className: "table-wrap" }, [el("table", {}, [head, body])]);
 }
 
 export function empty(message: string): HTMLElement {

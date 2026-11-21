@@ -2,9 +2,20 @@ import { money, type AdminApi, type MandateRow } from "./api";
 import { el, empty, moneyCell, pill, table } from "./dom";
 
 function stat(label: string, value: Node | string): HTMLElement {
-  return el("div", { className: "card" }, [
+  return el("div", { className: "card metric-card" }, [
     el("div", { className: "label", text: label }),
     el("div", { className: "value" }, [typeof value === "string" ? document.createTextNode(value) : value]),
+  ]);
+}
+
+function pageHeading(eyebrow: string, title: string, description: string): HTMLElement {
+  return el("div", { className: "page-heading" }, [
+    el("div", { className: "eyebrow" }, [
+      el("span", { className: "eyebrow-line" }),
+      el("span", { text: eyebrow }),
+    ]),
+    el("h1", { text: title }),
+    el("p", { className: "hint", text: description }),
   ]);
 }
 
@@ -27,7 +38,7 @@ export async function overviewView(api: AdminApi): Promise<HTMLElement> {
   const states = Object.entries(overview.paymentsByState).sort(([a], [b]) => a.localeCompare(b));
   const stateTable =
     states.length === 0
-      ? empty("No payments yet. Run the demo agent or the MCP smoke script to create one.")
+      ? empty("No payments yet. Run the demo agent or MCP smoke script to create one.")
       : table(
           ["state", "payments"],
           states.map(([state, count]) => [pill(state), String(count)]),
@@ -54,11 +65,26 @@ export async function overviewView(api: AdminApi): Promise<HTMLElement> {
   }) as HTMLButtonElement;
 
   return el("div", {}, [
-    el("h2", { text: "Overview" }),
-    cards,
-    el("h2", { text: "Payments by state" }),
-    stateTable,
-    el("div", { className: "card" }, [button, resultLine]),
+    pageHeading("SYSTEM OVERVIEW", "Your payment control plane", "A live view of agent activity, ledger health and the controls keeping every payment accountable."),
+    el("section", { className: "metrics-grid", ariaLabel: "Payment and ledger metrics" }, [cards]),
+    el("section", { className: "data-section" }, [
+      el("div", { className: "section-heading" }, [
+        el("div", {}, [
+          el("span", { className: "panel-overline", text: "ACTIVITY BREAKDOWN" }),
+          el("h2", { text: "Payments by state" }),
+        ]),
+        el("a", { className: "text-link", href: "#/payments", text: "View payments →" }),
+      ]),
+      stateTable,
+    ]),
+    el("section", { className: "reconciliation-card" }, [
+      el("div", {}, [
+        el("span", { className: "panel-overline", text: "KEEP RECORDS IN SYNC" }),
+        el("h2", { text: "Reconciliation" }),
+        el("p", { className: "hint", text: "Compare simulated provider outcomes with the gateway ledger." }),
+      ]),
+      el("div", { className: "reconciliation-action" }, [button, resultLine]),
+    ]),
   ]);
 }
 
@@ -68,7 +94,10 @@ export async function paymentsView(api: AdminApi, paymentId: string): Promise<HT
   }
   const payments = await api.payments(100);
   if (payments.length === 0) {
-    return el("div", {}, [el("h2", { text: "Payments" }), empty("No payments yet.")]);
+    return el("div", {}, [
+      pageHeading("TRANSACTION EXPLORER", "Payments", "Follow each payment from authorization through its final ledger entries."),
+      empty("No payments yet. Run the demo agent or MCP smoke script to create one."),
+    ]);
   }
   const rows = payments.map((payment) => [
     el("a", { className: "mono", href: `#/payments/${payment.paymentId}`, text: payment.paymentId }),
@@ -80,8 +109,11 @@ export async function paymentsView(api: AdminApi, paymentId: string): Promise<HT
     payment.createdAt.replace("T", " ").slice(0, 19),
   ]);
   return el("div", {}, [
-    el("h2", { text: `Payments (${payments.length})` }),
-    el("p", { className: "hint", text: "Click a payment id for its event timeline and ledger postings." }),
+    pageHeading("TRANSACTION EXPLORER", "Payments", "Follow each payment from authorization through its final ledger entries."),
+    el("div", { className: "list-meta" }, [
+      el("span", { className: "result-count", text: `${payments.length} recent payments` }),
+      el("span", { className: "hint", text: "Select a payment to inspect its event timeline and ledger postings." }),
+    ]),
     table(["payment", "state", "amount", "merchant", "agent", "reason", "created"], rows),
   ]);
 }
@@ -123,20 +155,37 @@ async function paymentDetail(api: AdminApi, paymentId: string): Promise<HTMLElem
   );
 
   return el("div", {}, [
-    el("p", {}, [el("a", { href: "#/payments", text: "← all payments" })]),
-    el("h2", { text: payment.paymentId }),
-    fields,
-    el("h2", { text: "Event timeline" }),
-    detail.events.length === 0 ? empty("No events recorded.") : events,
-    el("h2", { text: "Ledger postings" }),
-    detail.ledger.length === 0 ? empty("No postings for this payment yet.") : ledger,
+    el("p", { className: "back-link" }, [el("a", { href: "#/payments", text: "← All payments" })]),
+    pageHeading("PAYMENT DETAIL", payment.paymentId, "A complete record of the payment state, provider events and accounting trail."),
+    el("section", { className: "metrics-grid", ariaLabel: "Payment details" }, [fields]),
+    el("section", { className: "data-section" }, [
+      el("div", { className: "section-heading" }, [
+        el("div", {}, [
+          el("span", { className: "panel-overline", text: "LIFECYCLE" }),
+          el("h2", { text: "Event timeline" }),
+        ]),
+      ]),
+      detail.events.length === 0 ? empty("No events recorded.") : events,
+    ]),
+    el("section", { className: "data-section" }, [
+      el("div", { className: "section-heading" }, [
+        el("div", {}, [
+          el("span", { className: "panel-overline", text: "DOUBLE-ENTRY RECORD" }),
+          el("h2", { text: "Ledger postings" }),
+        ]),
+      ]),
+      detail.ledger.length === 0 ? empty("No postings for this payment yet.") : ledger,
+    ]),
   ]);
 }
 
 export async function mandatesView(api: AdminApi): Promise<HTMLElement> {
   const mandates = await api.mandates();
   if (mandates.length === 0) {
-    return el("div", {}, [el("h2", { text: "Mandates" }), empty("No mandates uploaded.")]);
+    return el("div", {}, [
+      pageHeading("POLICY CONTROL", "Mandates", "Inspect the signed spending limits that bound what each agent can do."),
+      empty("No mandates uploaded."),
+    ]);
   }
   const rows = mandates.map((mandate: MandateRow) => [
     el("span", { className: "mono", text: String(mandate.mandate_id ?? "—") }),
@@ -149,11 +198,11 @@ export async function mandatesView(api: AdminApi): Promise<HTMLElement> {
     timestamp(Number(mandate.expires_at_epoch_second ?? 0)),
   ]);
   return el("div", {}, [
-    el("h2", { text: `Mandates (${mandates.length})` }),
-    el("p", {
-      className: "hint",
-      text: "A mandate is signed by an issuer key. The gateway never trusts the agent's word for any of these numbers.",
-    }),
+    pageHeading("POLICY CONTROL", "Mandates", "Signed spending limits define each agent's budget, transaction caps and validity window."),
+    el("div", { className: "callout" }, [
+      el("span", { className: "callout-icon", text: "◇" }),
+      el("p", { text: "Mandates are signed by an issuer key. Limits are verified by the gateway—not supplied by the agent." }),
+    ]),
     table(
       ["mandate", "agent", "ccy", "total", "remaining", "per tx", "per day", "expires"],
       rows,
@@ -185,12 +234,14 @@ export async function auditView(api: AdminApi): Promise<HTMLElement> {
     ]),
   );
   return el("div", {}, [
-    el("h2", { text: "Audit log" }),
-    summary,
-    el("p", {
-      className: "hint",
-      text: "Each row hashes the previous row's hash with its own fields. Editing any stored field breaks that row and every link after it.",
-    }),
+    pageHeading("VERIFIABLE HISTORY", "Audit log", "Review operator actions and verify that the append-only record remains intact."),
+    el("section", { className: "audit-summary" }, [
+      summary,
+      el("p", {
+        className: "hint",
+        text: "Each entry links to the previous hash. Changing a stored field breaks the chain from that point onward.",
+      }),
+    ]),
     rows.length === 0 ? empty("No audit entries yet.") : auditTable,
   ]);
 }

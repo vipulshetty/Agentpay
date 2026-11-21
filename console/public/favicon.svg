@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 226 122">
+  <defs>
+    <linearGradient id="blade" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#17ef99"/>
+      <stop offset="1" stop-color="#6dfab8"/>
+    </linearGradient>
+    <linearGradient id="facet" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#06412c"/>
+      <stop offset="1" stop-color="#03996a"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#blade)" d="M117 0 H184 L67 122 H0 Z"/>
+  <path fill="url(#facet)" d="M191 40 L226 90 L170 118 L142 90 Z"/>
+</svg>
