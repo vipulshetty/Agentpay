@@ -2,6 +2,7 @@ package com.agentpaygate.gateway.security;
 
 import com.agentpaygate.gateway.config.AppProperties;
 import com.agentpaygate.gateway.repo.AgentRepository;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -37,6 +38,15 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // MCP answers with a streaming body, so Tomcat re-dispatches the request as
+                        // ASYNC after the original (already authorised) request returned. The filter
+                        // chain runs again on that dispatch, and with a stateless chain there is no
+                        // SecurityContext to restore, so re-authorising denies a request that was
+                        // allowed a moment ago and aborts the committed stream. The internal
+                        // continuation is therefore let through; the request itself was checked
+                        // before any work happened. ERROR is permitted for the same reason: it is
+                        // the container's own dispatch, and /error is public above.
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                         .requestMatchers("/actuator/health/**", "/actuator/prometheus", "/actuator/info").permitAll()
                         // The container's error dispatch must be reachable, otherwise every error is
                         // rewritten into a 401 and the real status and message are lost.

@@ -138,8 +138,16 @@ public class AdminService {
         out.put("ledgerConserves", ledger.conserves());
         out.put("noNegativeBalances", ledger.noNegativeNonExternalBalances());
         out.put("agents", agents.list().size());
+        // "Open" means work is still pending. CAPTURED and REFUNDED are not terminal in the state
+        // machine (a capture can still be refunded) but they are settled: nothing is in flight, so
+        // counting them made a fully settled ledger report "open payments: 3".
         out.put("openPayments", byState.entrySet().stream()
-                .filter(e -> !PaymentState.valueOf(e.getKey()).isTerminal())
+                .filter(e -> {
+                    PaymentState state = PaymentState.valueOf(e.getKey());
+                    return !state.isTerminal()
+                            && state != PaymentState.CAPTURED
+                            && state != PaymentState.REFUNDED;
+                })
                 .mapToLong(Map.Entry::getValue).sum());
         return out;
     }

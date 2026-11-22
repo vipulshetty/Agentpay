@@ -30,7 +30,7 @@ export async function overviewView(api: AdminApi): Promise<HTMLElement> {
     stat("open payments", String(overview.openPayments)),
     stat("captured (net)", money(overview.totalCapturedMinor, "INR")),
     stat("agents", String(overview.agents)),
-    stat("unresolved discrepancies", String(overview.unresolvedDiscrepancies)),
+    stat("discrepancies", String(overview.unresolvedDiscrepancies)),
     stat("ledger conserves", pill(overview.ledgerConserves ? "valid" : "invalid")),
     stat("no negative balances", pill(overview.noNegativeBalances ? "valid" : "invalid")),
   ]);

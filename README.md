@@ -44,6 +44,15 @@ node demo-agent/dist/main.js                                           # control
 `./scripts/verify-all.sh` runs every component's gates and reports each one as PASS, FAIL or ABSENT.
 A skipped test is a failure by definition, not a pass.
 
+The full reactor build starts real Postgres and psp-sim containers for the 12 integration tests, so it
+needs a running Docker daemon. Without one, `./mvnw -B -DskipITs verify` runs the 86 unit tests.
+
+## Screenshots
+
+![The AgentPay landing page, with the system map that walks one request through the components](docs/screenshots/landing.png)
+
+![The operator console, reading a live gateway](docs/screenshots/console.png)
+
 ## Layout
 
 ```
@@ -98,3 +107,11 @@ concurrency; they are not a capacity claim. Everything not run is marked UNVERIF
 - `docs/determinism.md` — why the pure cores and the lab are reproducible
 - `docs/walkthrough/phase-*.md` — what each phase built, and the bugs it found
 - `docs/PROGRESS.md` — per-phase commands, exit codes and known gaps
+
+## Licence
+
+MIT — see [LICENSE](LICENSE).
+
+Using it does not make it production software. It is a simulation: no card network, no real money,
+no PCI scope, and the security properties described in `docs/threat-model.md` apply to this
+simulation only.

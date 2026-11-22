@@ -650,6 +650,47 @@ class GatewayIT {
         assertThat(ledger.conserves()).isTrue();
     }
 
+    /**
+     * A streamed reply has to end.
+     *
+     * <p>The MCP test above reads the stream by hand and stops at the first complete JSON-RPC
+     * message, which a truncated response also satisfies. That is why it stayed green while the
+     * gateway was aborting every committed SSE response: the initial request was authorised, then
+     * Tomcat re-dispatched it as ASYNC, the stateless security chain denied the re-dispatch and the
+     * connection was reset. curl tolerated it; fetch/undici reported "Invalid EOF state".
+     *
+     * <p>This reads the body as a whole, the way a normal client does: a stream that never ends
+     * trips the request timeout, and one that is cut short fails while reading.
+     */
+    @Test
+    @Order(13)
+    void mcpStreamingResponseReachesAStrictClient() throws Exception {
+        String apiKey = createAgent("agent-mcp-stream");
+        HttpClient client = HttpClient.newHttpClient();
+
+        McpReply init = mcp(client, apiKey, null,
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{"
+                        + "\"protocolVersion\":\"2025-06-18\",\"capabilities\":{},"
+                        + "\"clientInfo\":{\"name\":\"gateway-it-stream\",\"version\":\"0\"}}}");
+        assertThat(init.sessionId()).as("the server establishes an MCP session").isNotBlank();
+
+        HttpRequest listed = HttpRequest.newBuilder(URI.create("http://localhost:18080/mcp"))
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/json, text/event-stream")
+                .header("Authorization", "Bearer " + apiKey)
+                .header("Mcp-Session-Id", init.sessionId())
+                .timeout(Duration.ofSeconds(20))
+                .POST(HttpRequest.BodyPublishers.ofString(
+                        "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":{}}"))
+                .build();
+        HttpResponse<String> response = client.send(listed, HttpResponse.BodyHandlers.ofString());
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.body()).as("a complete streamed body, not a truncated one")
+                .contains("\"tools\"")
+                .contains("request_payment");
+    }
+
     private record McpReply(String sessionId, String json) {
     }
 

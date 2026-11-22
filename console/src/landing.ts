@@ -1,9 +1,9 @@
 /**
- * The AgentPay marketing surface.
+ * AgentPay marketing surface.
  *
- * Restrained by design: a typographic page with a single animated element (the
- * authorization trace). Everything else is static content. The only live
- * interaction is the admin-token form, which opens the real operator console.
+ * A light, editorial page: type, hairline rules and one green accent. There is exactly one
+ * animated element — the system map that walks a request through the components — and everything
+ * else is static. The only live interaction is the admin-token form, which opens the operator console.
  */
 
 import "./site.css";
@@ -46,7 +46,7 @@ function brand(): HTMLElement {
       },
     },
     [
-      logoMark(),
+      el("span", { className: "brand-tile" }, [logoMark("brand-mark")]),
       el("span", { className: "brand-name" }, [
         document.createTextNode("Agent"),
         el("span", { className: "brand-name-accent", text: "Pay" }),
@@ -55,8 +55,15 @@ function brand(): HTMLElement {
   );
 }
 
+const NAV: Array<[string, string]> = [
+  ["How it works", "how"],
+  ["Policy", "policy"],
+  ["Records", "records"],
+  ["Console", "console"],
+];
+
 function siteHeader(): HTMLElement {
-  const header = el("header", { className: "site-header p-header" });
+  const header = el("header", { className: "p-header" });
   const toggle = el("button", { className: "p-menu", type: "button", text: "Menu" }) as HTMLButtonElement;
   toggle.setAttribute("aria-expanded", "false");
   toggle.setAttribute("aria-controls", "p-nav");
@@ -73,17 +80,10 @@ function siteHeader(): HTMLElement {
     toggle.textContent = open ? "Close" : "Menu";
   });
 
-  const links: Array<[string, string]> = [
-    ["How it works", "how"],
-    ["Policy", "policy"],
-    ["Records", "records"],
-    ["Console", "console"],
-  ];
-
   const nav = el(
     "nav",
     { className: "p-nav", ariaLabel: "Sections" },
-    links.map(([label, id]) =>
+    NAV.map(([label, id]) =>
       el("a", {
         href: `#${id}`,
         text: label,
@@ -101,6 +101,7 @@ function siteHeader(): HTMLElement {
     el("div", { className: "p-header-inner" }, [
       brand(),
       nav,
+      el("span", { className: "p-header-gap" }),
       el(
         "a",
         {
@@ -112,7 +113,7 @@ function siteHeader(): HTMLElement {
             goTo("access");
           },
         },
-        [document.createTextNode("Open console"), el("span", { className: "p-arrow", ariaHidden: true, text: "→" })],
+        [document.createTextNode("Open console")],
       ),
       toggle,
     ]),
@@ -120,109 +121,119 @@ function siteHeader(): HTMLElement {
   return header;
 }
 
-/* ------------------------------------------------------------------ hero */
+/* ------------------------------------------------------------------ the one animation */
 
-const STEPS = [
-  { name: "Request", active: "receiving", done: "signed body", fail: "rejected" },
-  { name: "Mandate", active: "verifying", done: "signature valid", fail: "invalid" },
-  { name: "Policy", active: "evaluating", done: "within all limits", fail: "denied · over cap" },
-  { name: "Capture", active: "reserving", done: "pay_8f21c4", fail: "not reached" },
-  { name: "Record", active: "writing", done: "balanced + sealed", fail: "not reached" },
+const COMPONENTS = [
+  { role: "agent", name: "Agent runtime", active: "signing", done: "intent signed", fail: "no intent" },
+  { role: "gateway", name: "Gateway", active: "verifying", done: "signature valid", fail: "signature invalid" },
+  { role: "policy", name: "Policy engine", active: "evaluating", done: "within limits", fail: "over the cap" },
+  { role: "ledger", name: "Ledger", active: "posting", done: "entry balanced", fail: "not reached" },
+  { role: "audit", name: "Audit chain", active: "appending", done: "0x5c77…1a sealed", fail: "not reached" },
+  { role: "provider", name: "Provider", active: "capturing", done: "pay_8f21c4", fail: "not reached" },
 ] as const;
 
 type Mode = "approved" | "denied";
 type StepState = "idle" | "active" | "done" | "fail" | "skip";
 
 const OUTCOME: Record<Mode, readonly ("done" | "fail" | "skip")[]> = {
-  approved: ["done", "done", "done", "done", "done"],
-  denied: ["done", "done", "fail", "skip", "skip"],
+  approved: ["done", "done", "done", "done", "done", "done"],
+  denied: ["done", "done", "fail", "skip", "skip", "skip"],
 };
 
 const SCENARIO: Record<Mode, { request: string; verdict: string; code: string }> = {
-  approved: { request: "INR 420.00 · blue_bottle · mnd_01", verdict: "APPROVED", code: "pay_8f21c4 captured" },
-  denied: { request: "INR 1,500.00 · blue_bottle · mnd_01", verdict: "DENIED", code: "AMOUNT_OVER_TX_LIMIT" },
+  approved: { request: "INR 420.00 · blue_bottle · mnd_01", verdict: "approved", code: "pay_8f21c4 captured" },
+  denied: { request: "INR 1,500.00 · blue_bottle · mnd_01", verdict: "denied", code: "AMOUNT_OVER_TX_LIMIT" },
 };
 
-interface Pipeline {
+interface Trace {
   node: HTMLElement;
   start(): void;
 }
 
-/** The one system animation on the page: a request moving through five checks. */
-function createPipeline(): Pipeline {
+/** One request walking the components, line by line. The only moving part on the page. */
+function createMap(): Trace {
   let current: Mode = "approved";
   let started = false;
   let token = 0;
   let timer = 0;
 
-  const root = el("section", { className: "p-pipe", ariaLabel: "Authorization trace" });
-  const request = el("span", { className: "p-pipe-req", text: SCENARIO.approved.request });
-  const verdict = el("span", { className: "p-pipe-verdict" });
-  const verdictMain = el("span", { className: "p-verdict-main", text: "READY" });
+  const root = el("section", { className: "p-map", ariaLabel: "System map: how a request moves through AgentPay" });
+  const request = el("span", { className: "p-req", text: SCENARIO.approved.request });
+  const verdict = el("span", { className: "p-verdict" });
+  const verdictMain = el("span", { className: "p-verdict-main", text: "ready" });
   const verdictCode = el("span", { className: "p-verdict-code" });
   verdict.append(verdictMain, verdictCode);
   verdict.setAttribute("role", "status");
   verdict.setAttribute("aria-live", "polite");
 
-  const items = STEPS.map((step, index) => {
-    const state = el("span", { className: "p-step-state", text: "waiting" });
-    const item = el("li", { className: "p-step is-idle" }, [
-      el("span", { className: "p-step-n", text: String(index + 1).padStart(2, "0") }),
-      el("span", { className: "p-step-name", text: step.name }),
-      state,
+  const items = COMPONENTS.map((component, index) => {
+    const state = el("span", { className: "p-node-state", text: "waiting" });
+    const item = el("li", { className: "p-node is-idle" }, [
+      el("span", { className: "p-node-dot", ariaHidden: true }),
+      el("span", { className: "p-node-line", ariaHidden: true }),
+      el("span", { className: "p-node-body" }, [
+        el("span", { className: "p-node-role", text: `${String(index + 1).padStart(2, "0")} · ${component.role}` }),
+        el("span", { className: "p-node-name", text: component.name }),
+        state,
+      ]),
     ]);
     return { item, state };
   });
 
-  const fill = el("span", { className: "p-pipe-fill" });
-
-  const modeButtons: Array<{ button: HTMLButtonElement; mode: Mode }> = (["approved", "denied"] as Mode[]).map((mode) => {
-    const button = el("button", {
-      className: "p-mode",
-      type: "button",
-      text: mode === "approved" ? "Approved" : "Over limit",
-    }) as HTMLButtonElement;
-    button.setAttribute("aria-pressed", String(mode === current));
-    if (mode === current) button.classList.add("is-active");
-    button.addEventListener("click", () => {
-      current = mode;
-      modeButtons.forEach((entry) => {
-        entry.button.classList.toggle("is-active", entry.mode === mode);
-        entry.button.setAttribute("aria-pressed", String(entry.mode === mode));
+  const modeButtons: Array<{ button: HTMLButtonElement; mode: Mode }> = (["approved", "denied"] as Mode[]).map(
+    (mode) => {
+      const button = el("button", {
+        className: "p-mode",
+        type: "button",
+        text: mode === "approved" ? "Approved" : "Over limit",
+      }) as HTMLButtonElement;
+      button.setAttribute("aria-pressed", String(mode === current));
+      if (mode === current) button.classList.add("is-active");
+      button.addEventListener("click", () => {
+        current = mode;
+        modeButtons.forEach((entry) => {
+          entry.button.classList.toggle("is-active", entry.mode === mode);
+          entry.button.setAttribute("aria-pressed", String(entry.mode === mode));
+        });
+        run();
       });
-      run();
-    });
-    return { button, mode };
-  });
+      return { button, mode };
+    },
+  );
 
   root.append(
-    el("div", { className: "p-pipe-head" }, [
-      el("span", { className: "p-pipe-label", text: "Authorization trace" }),
-      el("div", { className: "p-modes" }, modeButtons.map((entry) => entry.button)),
+    el("div", { className: "p-shell p-map-inner" }, [
+      el("div", { className: "p-map-head" }, [
+        el("span", { className: "p-map-label", text: "System map · one request, six components" }),
+        el("div", { className: "p-modes" }, modeButtons.map((entry) => entry.button)),
+      ]),
+      el("ol", { className: "p-rail", ariaLabel: "Components in the request path" }, items.map((entry) => entry.item)),
+      el("div", { className: "p-map-foot" }, [request, verdict]),
     ]),
-    el("ol", { className: "p-steps" }, items.map((entry) => entry.item)),
-    el("div", { className: "p-pipe-track" }, [fill]),
-    el("div", { className: "p-pipe-foot" }, [request, verdict]),
   );
 
   function paint(states: readonly StepState[]): void {
     items.forEach((entry, index) => {
       const state = states[index] ?? "idle";
-      entry.item.className = `p-step is-${state}`;
-      const step = STEPS[index]!;
+      entry.item.className = `p-node is-${state}`;
+      const component = COMPONENTS[index]!;
       entry.state.textContent =
         state === "idle"
           ? "waiting"
           : state === "active"
-            ? step.active
+            ? component.active
             : state === "done"
-              ? step.done
+              ? component.done
               : state === "fail"
-                ? step.fail
+                ? component.fail
                 : "not reached";
     });
-    const complete = states.filter((state) => state === "done" || state === "fail").length;
-    fill.style.width = `${(complete / STEPS.length) * 100}%`;
+  }
+
+  function finish(copy: { verdict: string; code: string }): void {
+    verdict.className = `p-verdict is-${current}`;
+    verdictMain.textContent = copy.verdict;
+    verdictCode.textContent = copy.code;
   }
 
   function run(): void {
@@ -232,12 +243,11 @@ function createPipeline(): Pipeline {
 
     const outcome = OUTCOME[current];
     const copy = SCENARIO[current];
-    const states: StepState[] = ["idle", "idle", "idle", "idle", "idle"];
+    const states: StepState[] = ["idle", "idle", "idle", "idle", "idle", "idle"];
 
-    root.classList.toggle("is-denied", current === "denied");
     request.textContent = copy.request;
-    verdict.className = "p-pipe-verdict";
-    verdictMain.textContent = "CHECKING";
+    verdict.className = "p-verdict";
+    verdictMain.textContent = "checking";
     verdictCode.textContent = "";
     paint(states);
 
@@ -246,23 +256,17 @@ function createPipeline(): Pipeline {
         states[index] = state;
       });
       paint(states);
-      finish();
+      finish(copy);
       return;
     }
 
-    const order = current === "denied" ? [0, 1, 2] : [0, 1, 2, 3, 4];
+    const order = current === "denied" ? [0, 1, 2] : [0, 1, 2, 3, 4, 5];
     let cursor = 0;
-
-    function finish(): void {
-      verdict.className = `p-pipe-verdict is-${current === "approved" ? "approved" : "denied"}`;
-      verdictMain.textContent = copy.verdict;
-      verdictCode.textContent = copy.code;
-    }
 
     function advance(): void {
       if (id !== token) return;
       if (cursor >= order.length) {
-        finish();
+        finish(copy);
         return;
       }
       const index = order[cursor]!;
@@ -277,7 +281,7 @@ function createPipeline(): Pipeline {
         cursor += 1;
         paint(states);
         advance();
-      }, 560);
+      }, 480);
     }
 
     advance();
@@ -296,7 +300,7 @@ function createPipeline(): Pipeline {
         observer.disconnect();
         run();
       },
-      { threshold: 0.35 },
+      { threshold: 0.3 },
     );
     observer.observe(root);
   }
@@ -304,64 +308,61 @@ function createPipeline(): Pipeline {
   return { node: root, start };
 }
 
-function hero(): { node: HTMLElement; pipeline: Pipeline } {
-  const pipeline = createPipeline();
+/* ------------------------------------------------------------------ hero */
 
-  const facts = ["Ed25519 mandates", "Deny by default", "Double-entry ledger", "Hash-chained audit"];
+const FACTS: Array<[string, string]> = [
+  ["Mandates", "Ed25519, issuer-signed"],
+  ["Policy", "Deny by default"],
+  ["Ledger", "Double-entry, balanced"],
+  ["Audit", "Hash-chained events"],
+];
+
+function hero(): { node: HTMLElement; trace: Trace } {
+  const trace = createMap();
 
   const node = el("section", { className: "p-hero", id: "top", ariaLabel: "AgentPay introduction" }, [
-    el("div", { className: "p-shell p-hero-grid" }, [
-      el("div", { className: "p-hero-main" }, [
-        el("p", { className: "p-eyebrow", text: "Payment infrastructure for AI agents" }),
-        el("h1", { className: "p-title" }, [
-          el("span", { text: "The agent asks." }),
-          el("span", {}, [document.createTextNode("The gateway "), el("span", { className: "p-accent", text: "decides." })]),
-        ]),
-      ]),
-      el("div", { className: "p-hero-side" }, [
-        el("p", {
-          className: "p-lede",
-          text: "Signed spending mandates, deterministic policy checks and a double-entry ledger. The control plane between an agent's intent and a merchant's payment.",
-        }),
-        el("div", { className: "p-actions" }, [
-          el(
-            "a",
-            {
-              className: "p-btn p-btn-primary",
-              href: "#how",
-              onClick: (event) => {
-                event.preventDefault();
-                goTo("how");
-              },
-            },
-            [document.createTextNode("Explore the infrastructure")],
-          ),
-          el(
-            "a",
-            {
-              className: "p-btn p-btn-ghost",
-              href: "#access",
-              onClick: (event) => {
-                event.preventDefault();
-                goTo("access");
-              },
-            },
-            [document.createTextNode("Open operator console")],
-          ),
-        ]),
-      ]),
-    ]),
-    el("div", { className: "p-shell" }, [pipeline.node]),
     el("div", { className: "p-shell" }, [
-      el(
-        "div",
-        { className: "p-facts" },
-        facts.map((fact) => el("span", { className: "p-fact", text: fact })),
-      ),
+      el("p", { className: "p-eyebrow", text: "Payment infrastructure for AI agents" }),
+      el("h1", { className: "p-title" }, [
+        el("span", { text: "The agent asks." }),
+        el("span", {}, [document.createTextNode("The gateway "), el("span", { className: "p-accent", text: "decides." })]),
+      ]),
+      el("div", { className: "p-hero-grid" }, [
+        el("div", { className: "p-hero-lede" }, [
+          el("p", {
+            className: "p-lede",
+            text: "Signed spending mandates, deterministic policy checks and a double-entry ledger. The control plane between an agent's intent and a merchant's payment.",
+          }),
+          el("div", { className: "p-actions" }, [
+            el(
+              "a",
+              {
+                className: "p-btn p-btn-primary",
+                href: "#access",
+                onClick: (event) => {
+                  event.preventDefault();
+                  goTo("access");
+                },
+              },
+              [document.createTextNode("Open the console")],
+            ),
+            jump("How it works", "how", "p-btn p-btn-ghost"),
+          ]),
+          el("p", { className: "p-note", text: "Simulation environment — no real money moves." }),
+        ]),
+        el(
+          "dl",
+          { className: "p-facts" },
+          FACTS.flatMap(([term, detail]) => [
+            el("div", { className: "p-fact" }, [el("dt", { text: term }), el("dd", { text: detail })]),
+          ]),
+        ),
+      ]),
     ]),
+    trace.node,
   ]);
 
-  return { node, pipeline };
+  return { node, trace };
 }
 
 /* ------------------------------------------------------------------ sections */
@@ -369,22 +370,22 @@ function hero(): { node: HTMLElement; pipeline: Pipeline } {
 function howSection(): HTMLElement {
   const rows: Array<[string, string, string]> = [
     [
-      "01",
+      "1",
       "Mandate",
-      "A principal signs one. It names the agent, allowed merchants and categories, per-transaction, daily and lifetime caps, and a validity window. The signature is Ed25519.",
+      "A principal signs one. It names the agent, allowed merchants and categories, per-transaction, daily and lifetime caps, and a validity window.",
     ],
     [
-      "02",
+      "2",
       "Check",
-      "The gateway verifies the signature and mandate state, then runs limits, allowlists, expiry and nonce in a fixed order. The first failure becomes the reason code.",
+      "The gateway verifies the signature and mandate state, then runs limits, allowlists, expiry and nonce in a fixed order. The first failure is the reason code.",
     ],
     [
-      "03",
+      "3",
       "Capture",
-      "An approval reserves the amount, writes an outbox event and calls the provider. Retries reuse one idempotency key; an unknown result stays unresolved until reconciled.",
+      "An approval reserves the amount, writes an outbox event and calls the provider. Retries reuse one idempotency key; an unknown result waits for reconciliation.",
     ],
     [
-      "04",
+      "4",
       "Record",
       "Capture posts a balanced journal entry and appends a hash-chained audit event. A denial is recorded with its reason, and nothing moves.",
     ],
@@ -393,9 +394,11 @@ function howSection(): HTMLElement {
   return el("section", { className: "p-section", id: "how", ariaLabel: "How AgentPay works" }, [
     el("div", { className: "p-shell p-how" }, [
       el("div", { className: "p-how-aside" }, [
+        el("p", { className: "p-eyebrow", text: "How it works" }),
         el("h2", { className: "p-h2", text: "Authority, checked before money moves." }),
         el("p", {
-          text: "Four steps between an agent's intent and a settled payment. Each one is deterministic, recorded and reversible only by reconciliation.",
+          className: "p-copy",
+          text: "Four steps between an agent's intent and a settled payment. Each one is deterministic, recorded, and reversible only by reconciliation.",
         }),
       ]),
       el(
@@ -404,10 +407,7 @@ function howSection(): HTMLElement {
         rows.map(([number, title, copy]) =>
           el("div", { className: "p-row" }, [
             el("span", { className: "p-row-n", text: number }),
-            el("div", {}, [
-              el("h3", { className: "p-row-title", text: title }),
-              el("p", { className: "p-row-copy", text: copy }),
-            ]),
+            el("div", {}, [el("h3", { className: "p-row-title", text: title }), el("p", { className: "p-row-copy", text: copy })]),
           ]),
         ),
       ),
@@ -431,31 +431,35 @@ function policySection(): HTMLElement {
     "Wallet identity and currency must match",
   ];
 
-  const code = el("div", { className: "p-code" }, [
-    el("div", { className: "p-code-head" }, [
+  const example = el("figure", { className: "p-example" }, [
+    el("figcaption", {}, [
       el("span", { text: "POST /v1/payments" }),
-      el("span", { text: "application/json" }),
+      el("span", { className: "p-fig-status", text: "403 · refused" }),
     ]),
-    el("div", { className: "p-code-body" }, [
-      codeLine([["{ "]]),
-      codeLine([['  "agent_id"', "p-key"], [": ", "p-punc"], ['"agt_7f2c"', "p-str"], [","]]),
-      codeLine([['  "mandate_id"', "p-key"], [": ", "p-punc"], ['"mnd_01"', "p-str"], [","]]),
-      codeLine([['  "merchant"', "p-key"], [": ", "p-punc"], ['"blue_bottle"', "p-str"], [","]]),
-      codeLine([['  "amount_minor"', "p-key"], [": ", "p-punc"], ["150000", "p-num"], [","]]),
-      codeLine([['  "currency"', "p-key"], [": ", "p-punc"], ['"INR"', "p-str"]]),
+    el("div", { className: "p-code" }, [
+      codeLine([["{"]]),
+      codeLine([['  "agent_id"', "p-k"], [": ", "p-p"], ['"agt_7f2c"', "p-s"], [","]]),
+      codeLine([['  "mandate_id"', "p-k"], [": ", "p-p"], ['"mnd_01"', "p-s"], [","]]),
+      codeLine([['  "merchant"', "p-k"], [": ", "p-p"], ['"blue_bottle"', "p-s"], [","]]),
+      codeLine([['  "amount_minor"', "p-k"], [": ", "p-p"], ["150000", "p-n"], [","]]),
+      codeLine([['  "currency"', "p-k"], [": ", "p-p"], ['"INR"', "p-s"]]),
       codeLine([["}"]]),
-      el("div", { className: "p-code-rule" }),
-      codeLine([["403  ", "p-bad"], ["AMOUNT_OVER_TX_LIMIT", "p-bad"]]),
-      codeLine([["mandate cap   ", "p-dim"], ["1,000.00", "p-str"]]),
-      codeLine([["requested     ", "p-dim"], ["1,500.00", "p-str"]]),
     ]),
+    el("div", { className: "p-code p-code-response" }, [
+      codeLine([["403  ", "p-bad"], ["AMOUNT_OVER_TX_LIMIT", "p-bad"]]),
+      codeLine([["mandate cap   ", "p-dim"], ["1,000.00"]]),
+      codeLine([["requested     ", "p-dim"], ["1,500.00"]]),
+    ]),
+    el("p", { className: "p-caption", text: "Illustrative response. Reason codes come back from the gateway unchanged." }),
   ]);
 
   return el("section", { className: "p-section", id: "policy", ariaLabel: "Policy engine" }, [
     el("div", { className: "p-shell p-policy" }, [
-      el("div", { className: "p-policy-copy" }, [
+      el("div", {}, [
+        el("p", { className: "p-eyebrow", text: "Policy" }),
         el("h2", { className: "p-h2", text: "A mandate is a contract, not a prompt." }),
         el("p", {
+          className: "p-copy",
           text: "The engine is deterministic. The same request against the same mandate returns the same answer, with the rule that failed and the numbers behind it.",
         }),
         el(
@@ -464,30 +468,20 @@ function policySection(): HTMLElement {
           rules.map((rule) => el("li", { text: rule })),
         ),
       ]),
-      el("div", {}, [
-        code,
-        el("p", { className: "p-caption", text: "Illustrative response. Reason codes come back from the gateway unchanged." }),
-      ]),
+      example,
     ]),
   ]);
 }
 
-function recordPanel(
-  label: string,
-  chip: string,
-  chipClass: string,
-  rows: Array<[string, string, string]>,
-): HTMLElement {
+function recordPanel(label: string, chip: string, rows: Array<[string, string, string]>): HTMLElement {
   return el("div", { className: "p-panel" }, [
-    el("div", { className: "p-panel-head" }, [
-      el("span", { text: label }),
-      el("span", { className: `p-chip ${chipClass}`, text: chip }),
-    ]),
-    ...rows.map(([name, value, tone]) =>
-      el("div", { className: "p-panel-row" }, [
-        el("span", { text: name }),
-        el("span", { className: tone, text: value }),
-      ]),
+    el("div", { className: "p-panel-head" }, [el("span", { text: label }), el("span", { className: "p-chip", text: chip })]),
+    el(
+      "div",
+      { className: "p-panel-rows" },
+      rows.map(([name, value, tone]) =>
+        el("div", { className: "p-panel-row" }, [el("span", { text: name }), el("span", { className: `p-num ${tone}`, text: value })]),
+      ),
     ),
   ]);
 }
@@ -496,19 +490,22 @@ function recordsSection(): HTMLElement {
   return el("section", { className: "p-section", id: "records", ariaLabel: "Ledger and audit records" }, [
     el("div", { className: "p-shell" }, [
       el("div", { className: "p-section-head" }, [
-        el("h2", { className: "p-h2", text: "It happened. Here is the proof." }),
+        el("div", {}, [
+          el("p", { className: "p-eyebrow", text: "Records" }),
+          el("h2", { className: "p-h2", text: "It happened. Here is the proof." }),
+        ]),
         el("p", {
           className: "p-section-copy",
           text: "A capture writes a balanced entry and a sealed audit event in one transaction. A denial is recorded with its reason and leaves the ledger untouched.",
         }),
       ]),
       el("div", { className: "p-panels" }, [
-        recordPanel("Ledger · capture:pay_8f21c4", "BALANCED", "is-ok", [
-          ["MERCHANT_PAYABLE", "+ 420.00", "p-pos"],
-          ["AGENT_WALLET", "− 420.00", "p-neg"],
-          ["imbalance", "0.00", "p-dim"],
+        recordPanel("Ledger · capture pay_8f21c4", "Balanced", [
+          ["Merchant payable", "+ 420.00", "p-pos"],
+          ["Agent wallet", "− 420.00", "p-neg"],
+          ["Imbalance", "0.00", "p-dim"],
         ]),
-        recordPanel("Audit · event chain", "VERIFIED", "is-ok", [
+        recordPanel("Audit · event chain", "Verified", [
           ["pay.requested", "0x8a41…c2", "p-dim"],
           ["policy.allowed", "0x19e0…7b", "p-dim"],
           ["pay.captured", "0x5c77…1a", "p-dim"],
@@ -518,7 +515,7 @@ function recordsSection(): HTMLElement {
   ]);
 }
 
-function consoleSection(): HTMLElement {
+function paymentsTable(): HTMLElement {
   const rows: Array<[string, string, string, string, string]> = [
     ["pay_8f21c4", "blue_bottle", "420.00", "approved", "is-ok"],
     ["pay_2b9d11", "vercel", "2,400.00", "approved", "is-ok"],
@@ -527,51 +524,43 @@ function consoleSection(): HTMLElement {
     ["pay_90bb13", "blue_bottle", "380.00", "approved", "is-ok"],
   ];
 
-  const table = el("div", { className: "p-table" }, [
-    el("div", { className: "p-table-head" }, [
-      el("span", { text: "Payments" }),
-      el("span", { text: "24h · demo data" }),
-    ]),
-    el("div", { className: "p-tr p-th" }, [
-      el("span", { text: "payment" }),
-      el("span", { text: "merchant" }),
-      el("span", { text: "INR" }),
-      el("span", { text: "status" }),
-    ]),
-    ...rows.map(([id, merchant, amount, status, tone]) =>
-      el("div", { className: "p-tr" }, [
-        el("span", { className: "p-mono-id", text: id }),
-        el("span", { text: merchant }),
-        el("span", { text: amount }),
-        el("span", { className: `p-status ${tone}`, text: status }),
-      ]),
-    ),
+  const head = el("thead", {}, [
+    el("tr", {}, ["Payment", "Merchant", "Amount", "Status"].map((label) => el("th", { text: label }))),
   ]);
 
-  const capabilities: Array<[string, string]> = [
-    ["Payments", "Every request with its decision, reason code and provider state."],
-    ["Mandates", "Live budgets, remaining caps and the exact signing key."],
-    ["Ledger", "Balanced journals, plus re-post attempts that correctly no-op."],
-    ["Audit", "The hash chain, verified event by event."],
-  ];
-
-  return el("section", { className: "p-section", id: "console", ariaLabel: "Operator console" }, [
-    el("div", { className: "p-shell p-console" }, [
-      el("div", { className: "p-console-copy" }, [
-        el("h2", { className: "p-h2", text: "The operator's side." }),
-        el("p", {
-          text: "The console reads your gateway's admin API directly. No mock data in the real console, and no second source of truth.",
-        }),
-        el(
-          "dl",
-          { className: "p-caps" },
-          capabilities.flatMap(([title, copy]) => [
-            el("dt", { text: title }),
-            el("dd", { text: copy }),
-          ]),
-        ),
+  const body = el(
+    "tbody",
+    {},
+    rows.map(([id, merchant, amount, status, tone]) =>
+      el("tr", {}, [
+        el("td", { className: "p-mono", text: id }),
+        el("td", { text: merchant }),
+        el("td", { className: "p-amount", text: `INR ${amount}` }),
+        el("td", {}, [
+          el("span", { className: `p-status ${tone}` }, [el("span", { className: "p-dot", ariaHidden: true }), status]),
+        ]),
       ]),
-      table,
+    ),
+  );
+
+  return el("div", { className: "p-table" }, [el("table", {}, [head, body])]);
+}
+
+function consoleSection(): HTMLElement {
+  return el("section", { className: "p-section", id: "console", ariaLabel: "Operator console" }, [
+    el("div", { className: "p-shell" }, [
+      el("div", { className: "p-section-head" }, [
+        el("div", {}, [
+          el("p", { className: "p-eyebrow", text: "Console" }),
+          el("h2", { className: "p-h2", text: "The operator's side." }),
+        ]),
+        el("p", {
+          className: "p-section-copy",
+          text: "Payments, live budgets, balanced journals and the audit chain — read from your gateway's admin API. No mock data in the real console.",
+        }),
+      ]),
+      paymentsTable(),
+      el("p", { className: "p-note p-table-note", text: "Sample rows from the simulation lab." }),
     ]),
   ]);
 }
@@ -586,16 +575,15 @@ function accessSection(options: LandingOptions): HTMLElement {
     ariaLabel: "Gateway admin token",
   }) as HTMLInputElement;
 
-  const form = el("form", { className: "p-form" }, [
+  const form = el("form", { className: "p-access-form" }, [
     el("label", { className: "p-label", text: "Gateway admin token" }),
-    input,
-    el("button", { className: "p-btn p-btn-primary", type: "submit" }, [
-      document.createTextNode("Open operator console"),
-      el("span", { className: "p-arrow", ariaHidden: true, text: "→" }),
+    el("div", { className: "p-access-row" }, [
+      input,
+      el("button", { className: "p-btn p-btn-light", type: "submit", text: "Open console" }),
     ]),
     el("p", {
       className: "p-hint",
-      text: "Kept in this browser session. Local demo: demo-admin-token.",
+      text: "Kept in this browser session. Local demo token: demo-admin-token.",
     }),
   ]);
 
@@ -610,51 +598,37 @@ function accessSection(options: LandingOptions): HTMLElement {
   });
 
   return el("section", { className: "p-access", id: "access", ariaLabel: "Open the operator console" }, [
-    el("div", { className: "p-shell" }, [
-      el("div", { className: "p-access-card" }, [
-        el("div", {}, [
-          el("h2", { className: "p-h3", text: "Open the console." }),
-          el("p", {
-            className: "p-access-copy",
-            text: "Paste the admin token for your gateway. It is sent only to the gateway you configured and stored nowhere else.",
-          }),
-        ]),
-        form,
+    el("div", { className: "p-shell p-access-grid" }, [
+      el("div", {}, [
+        el("p", { className: "p-eyebrow", text: "Access" }),
+        el("h2", { className: "p-h2", text: "Open the console." }),
+        el("p", {
+          className: "p-access-copy",
+          text: "Paste the admin token for your gateway. It is sent only to the gateway you configured and stored nowhere else.",
+        }),
       ]),
+      form,
     ]),
   ]);
 }
 
 function footer(): HTMLElement {
-  const column = (title: string, links: Array<[string, string]>): HTMLElement =>
-    el("div", { className: "p-footer-col" }, [
-      el("span", { text: title }),
-      ...links.map(([label, id]) => jump(label, id)),
-    ]);
-
-  return el("footer", { className: "p-footer", ariaLabel: "AgentPay footer" }, [
+  return el("footer", { className: "p-footer" }, [
     el("div", { className: "p-shell" }, [
       el("div", { className: "p-footer-top" }, [
         el("div", { className: "p-footer-brand" }, [
           brand(),
           el("p", { text: "Payment infrastructure for autonomous agents. Authority, enforced before the money moves." }),
         ]),
-        el("div", { className: "p-footer-nav" }, [
-          column("Sections", [
-            ["How it works", "how"],
-            ["Policy", "policy"],
-            ["Records", "records"],
-            ["Console", "console"],
-          ]),
-          column("Get started", [
-            ["Open console", "access"],
-            ["Back to top", "top"],
-          ]),
-        ]),
+        el(
+          "nav",
+          { className: "p-footer-nav", ariaLabel: "Footer" },
+          NAV.map(([label, id]) => jump(label, id)),
+        ),
       ]),
       el("div", { className: "p-footer-bottom" }, [
         el("span", { text: "© 2026 AgentPay" }),
-        el("span", { text: "Simulation environment — no real money moves." }),
+        el("span", { text: "Simulation-only environment. No real money moves." }),
       ]),
     ]),
   ]);
@@ -662,27 +636,20 @@ function footer(): HTMLElement {
 
 /* ------------------------------------------------------------------ page */
 
-let startPipeline: (() => void) | null = null;
+let startTrace: (() => void) | null = null;
 
 export function landingScreen(options: LandingOptions): HTMLElement {
   const heroBlock = hero();
-  startPipeline = heroBlock.pipeline.start;
+  startTrace = heroBlock.trace.start;
 
   return el("div", { className: "landing p-site" }, [
     el("a", { className: "p-skip", href: "#how", text: "Skip to content" }),
     siteHeader(),
-    el("main", {}, [
-      heroBlock.node,
-      howSection(),
-      policySection(),
-      recordsSection(),
-      consoleSection(),
-      accessSection(options),
-    ]),
+    el("main", {}, [heroBlock.node, howSection(), policySection(), recordsSection(), consoleSection(), accessSection(options)]),
     footer(),
   ]);
 }
 
 export function startLanding(_root: HTMLElement): void {
-  startPipeline?.();
+  startTrace?.();
 }

@@ -225,6 +225,37 @@ Decisions made (ADRs): none new.
 ---
 
 ```
+POST-PHASE FIXES (2026-11-22, not a phase gate)
+
+MCP streaming responses were aborted after the first byte.
+  Symptom: `node scripts/mcp-smoke.mjs` exited 1 with
+    "TypeError: terminated / Invalid EOF state" immediately after `initialize`. curl tolerated the
+    truncated stream, so the failure had been invisible to the smoke run.
+  Cause: the stateless Spring Security chain re-authorised Tomcat's ASYNC re-dispatch of the
+    already-authorised request, found no SecurityContext, denied /mcp, and reset a committed SSE
+    response. The gateway log showed AuthorizationDeniedException and "Missing result context"
+    for every tools/list and tools/call.
+  Fix: permit DispatcherType.ASYNC and DispatcherType.ERROR in SecurityConfig's authorisation rules.
+  Verified: gateway rebuilt against local PostgreSQL 17 + psp-sim (no Docker on this machine),
+    `node scripts/mcp-smoke.mjs` -> exit 0 ("MCP smoke test passed"), 0 level=ERROR lines,
+    API key / admin token denials unchanged (401), `./mvnw -B -DskipITs verify` -> exit 0, 86 tests.
+  Added: GatewayIT#mcpStreamingResponseReachesAStrictClient reads the SSE body as a whole, so a
+    truncated or unterminated stream fails. NOT RUN here: the integration suite needs Docker.
+
+"open payments" counted settled captures.
+  CAPTURED and REFUNDED are not terminal in the state machine (a capture can still be refunded),
+  so Overview reported every captured payment as open. Now only work that is still in flight counts.
+
+Console re-skinned to the landing page's light editorial system (console/src/style.css).
+  `console npm run check` and `npm run build` -> exit 0.
+
+Known gaps unchanged: Kubernetes manifests unapplied, CI workflow never executed here, TLS absent
+from the stack, console has no automated tests, Testcontainers suite not run on this machine.
+```
+
+---
+
+```
 PROJECT STATUS (as of this log)
 
 Verified by a command in this repository:
