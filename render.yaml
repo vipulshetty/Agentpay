@@ -1,0 +1,57 @@
+# Render Blueprint: the two Java services as free Docker web services.
+#
+# The database is not created here on purpose. Render's free Postgres is deleted 30 days after
+# creation, so this expects a Neon (or Supabase) connection string that the operator pastes in when
+# applying the blueprint.
+#
+# Apply at https://dashboard.render.com/blueprints -> New Blueprint Instance -> this repository.
+#
+# After both services exist:
+#   1. copy the provider's URL into the gateway's PSP_BASE_URL        (https://<psp>.onrender.com)
+#   2. copy the gateway's URL into the provider's GATEWAY_WEBHOOK_URL (https://<gateway>.onrender.com/webhooks/psp)
+#   3. both services already share WEBHOOK_SECRET through the group below
+#   4. seed the deployment: GATEWAY_BASE_URL=https://<gateway>.onrender.com \
+#      GATEWAY_ADMIN_TOKEN=<the generated token from the gateway's Environment tab> ./scripts/demo-setup.sh
+
+envVarGroups:
+  - name: agentpaygate-shared
+    envVars:
+      - key: WEBHOOK_SECRET
+        generateValue: true
+
+services:
+  - type: web
+    name: agentpaygate-gateway
+    runtime: docker
+    plan: free
+    dockerfilePath: ./deploy/Dockerfile.gateway.paas
+    dockerContext: .
+    healthCheckPath: /actuator/health
+    autoDeploy: true
+    envVars:
+      - fromGroup: agentpaygate-shared
+      - key: GATEWAY_DB_URL
+        sync: false
+      - key: GATEWAY_DB_USER
+        sync: false
+      - key: GATEWAY_DB_PASSWORD
+        sync: false
+      - key: GATEWAY_ADMIN_TOKEN
+        generateValue: true
+      - key: PSP_BASE_URL
+        sync: false
+      - key: OUTBOX_ENABLED
+        value: "true"
+
+  - type: web
+    name: agentpaygate-psp
+    runtime: docker
+    plan: free
+    dockerfilePath: ./deploy/Dockerfile.psp.paas
+    dockerContext: .
+    healthCheckPath: /actuator/health
+    autoDeploy: true
+    envVars:
+      - fromGroup: agentpaygate-shared
+      - key: GATEWAY_WEBHOOK_URL
+        sync: false

@@ -32,3 +32,6 @@ test-results/
 
 # Go build output
 edge-proxy/bin/
+
+# static deploy bundle built from console/dist
+sites/assets/

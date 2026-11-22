@@ -12,6 +12,10 @@ double-entry posting.
 > issuer signature. It is **not AP2**, not x402, and not any agent-payment protocol. Nothing here is
 > production software, PCI-compliant or bank-grade, and the project does not claim otherwise.
 
+**Live:** <https://agentpaygate-i8wccc.freebuff.site> — the landing page and console shell (static).
+The Java gateway and provider need a container host; [docs/GUIDE.md](docs/GUIDE.md#8-deploying-it)
+covers the free options and the `render.yaml` blueprint.
+
 ## What it does
 
 - Enforces per-transaction, daily and lifetime budgets, merchant/category allowlists, validity

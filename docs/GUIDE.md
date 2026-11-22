@@ -173,6 +173,7 @@ edge-proxy/      Go reverse proxy
 console/         TypeScript operator console + marketing landing page
 demo-agent/      MCP client: control case plus seven abuse cases
 deploy/          Dockerfiles, compose stack, nginx, Prometheus/Grafana, Kubernetes manifests
+sites/           static deploy bundle: a Worker that serves the console build and can proxy its admin API
 load/            closed-loop load generator for the MCP payment path
 docs/            architecture, threat model, invariants, fault model, determinism, phase reports
 ```
@@ -405,6 +406,12 @@ credential, and anyone with it can read every payment and run reconciliation.
 Use this when you want a permanent URL without managing a VM. The console is static; the gateway
 and provider run as two Docker web services; Postgres is Neon.
 
+**Shortcut:** the repository ships [`render.yaml`](../render.yaml). Apply it as a Blueprint
+(Dashboard → Blueprints → New Blueprint Instance → this repository) and it creates both Docker
+services from the Dockerfiles below, generates the admin token and one shared webhook secret, and
+prompts for the database values. The manual steps below are exactly what that blueprint does, so
+they double as the explanation.
+
 1. **Database — Neon.** Create a project, copy the pooled connection string, and turn it into:
    `GATEWAY_DB_URL=jdbc:postgresql://<host>/<db>?sslmode=require`, plus the user and password.
    Flyway creates the schema on first boot.
@@ -455,6 +462,19 @@ page and the console shell. Without a backend the console shows its error panel 
 token, which is acceptable if the page says so. This is the cheapest way to have a link, and the
 README screenshots do the rest.
 
+#### The copy deployed for this project
+
+- Landing + console shell: <https://agentpaygate-i8wccc.freebuff.site>
+- Preview of the same build: <https://agentpaygate-i8wccc-preview.freebuff.site>
+
+![The hosted landing page](screenshots/deployed.png)
+
+That is the static bundle in [`sites/`](../sites): a Worker that serves `console/dist` and, when
+`GATEWAY_ORIGIN` is set in the host's environment, forwards `/admin` and `/actuator` to that origin
+so the console stays same-origin and usable. Set `GATEWAY_ORIGIN=https://<your-gateway-host>` there
+and redeploy once the gateway exists. Until then the console shows its connection error, which is
+the honest state of a frontend with no backend behind it.
+
 ### Deploying publicly? Do these first
 
 1. Change `GATEWAY_ADMIN_TOKEN` and `WEBHOOK_SECRET`; never ship `compose-admin-token` or
@@ -479,6 +499,10 @@ Run in this repository, with commands and output recorded in `docs/evidence/` an
 - Console TypeScript check and production build.
 - Compose stack, edge proxy and Testcontainers integration suite per the recorded phase evidence
   (they need Docker/the Go toolchain, which the machine that re-verified the rest did not have).
+- The console build deployed as a static site and opened in Chromium: HTML, JS, CSS and fonts served
+  with the right content types, no console errors, landing page rendered; the `/admin` proxy path
+  in `sites/worker.js` was tested against a gateway running locally (real JSON back, lookalike
+  paths not proxied).
 
 Not verified anywhere, and not claimed: the Kubernetes manifests, TLS termination, multi-instance
 gateway behaviour, Postgres fault injection, console UI tests and accessibility.
