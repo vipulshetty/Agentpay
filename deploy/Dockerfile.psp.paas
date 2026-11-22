@@ -1,0 +1,25 @@
+# Builds the provider simulator from source, for PaaS hosts that cannot run Maven first.
+# The compose stack uses Dockerfile.psp, which copies the jar the Maven build produced.
+FROM maven:3.9-eclipse-temurin-21 AS build
+
+WORKDIR /src
+COPY pom.xml ./
+COPY ledger-core ledger-core
+COPY policy-core policy-core
+COPY payments-core payments-core
+COPY sim sim
+COPY mandate-cli mandate-cli
+COPY gateway-app gateway-app
+COPY psp-sim psp-sim
+
+RUN mvn -B -pl psp-sim -am -DskipTests package
+
+FROM eclipse-temurin:21-jre
+
+RUN useradd --system --uid 10002 --create-home psp
+WORKDIR /app
+COPY --from=build /src/psp-sim/target/psp-sim-0.1.0-SNAPSHOT.jar /app/psp-sim.jar
+USER psp
+
+EXPOSE 8081
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=70", "-jar", "/app/psp-sim.jar"]

@@ -100,6 +100,7 @@ concurrency; they are not a capacity claim. Everything not run is marked UNVERIF
 
 ## Documentation
 
+- [`docs/GUIDE.md`](docs/GUIDE.md) — what the app is, the stack, features, how to run and demo it, and how to deploy it for free
 - `docs/architecture.md` — components, request path, data model
 - `docs/threat-model.md` — assets, trust boundaries, threats and residual risks
 - `docs/invariants.md` — every invariant, where it is enforced, how it is tested

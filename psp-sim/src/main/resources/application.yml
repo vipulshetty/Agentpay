@@ -2,7 +2,8 @@ spring:
   application:
     name: agentpaygate-psp-sim
 server:
-  port: ${PSP_PORT:8081}
+  # PORT is what most PaaS hosts inject; PSP_PORT stays for compose and local runs.
+  port: ${PORT:${PSP_PORT:8081}}
   shutdown: graceful
 
 management:
